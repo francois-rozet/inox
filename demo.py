@@ -31,8 +31,8 @@ if __name__ == '__main__':
         hello: bool = True
         perceptron: Module
 
-        def __init__(self):
-            self.perceptron = MLP(subkey, 3, 1, hidden_features=[64, 64])
+        def __init__(self, key):
+            self.perceptron = MLP(key, 3, 1, hidden_features=[64, 64])
 
         def __call__(self, x):
             if self.hello:
@@ -40,7 +40,7 @@ if __name__ == '__main__':
 
             return jnp.squeeze(self.perceptron(x))
 
-    net = MyModule()
+    net = MyModule(subkey)
 
     # Nice repr
     print(net)
@@ -50,7 +50,7 @@ if __name__ == '__main__':
 
     # Training
     net.hello = False
-    state, build = net.functional()
+    state, build = net.partition()
 
     ## Optimizer
     optimizer = optax.adamw(learning_rate=1e-3)

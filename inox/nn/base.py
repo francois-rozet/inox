@@ -31,12 +31,8 @@ class DataTree(type):
         return cls
 
 
-@dataclasses.dataclass(init=False, repr=False)
-class ArrayRepr:
+class ArrayRepr(object):
     r""""""
-
-    shape: Sequence[int]
-    dtype: jax.numpy.dtype
 
     def __init__(self, x: Array):
         self.shape = x.shape
@@ -49,7 +45,7 @@ class ArrayRepr:
 class Module(metaclass=DataTree):
     r""""""
 
-    requires_grad: bool = dataclasses.field(default=True, repr=False)
+    meta: Any = dataclasses.field(default=None, repr=False)
 
     def __init__(self):
         pass
@@ -97,14 +93,21 @@ class Module(metaclass=DataTree):
 
         return self
 
-    def functional(self) -> Tuple[Any, Callable[[Any], Module]]:
+    def partition(
+        self,
+        exclude: Callable[[Module], bool] = None,
+    ) -> Tuple[List[Array], Callable[[List[Array]], Module]]:
         r""""""
 
-        is_buffer = lambda x: isinstance(x, Module) and not x.requires_grad
-        buffers, parameters, treedef = tree_partition(is_buffer, self, is_buffer)
-        build = partial(tree_merge, buffers, treedef=treedef)
+        if exclude is None:
+            f = lambda x: False
+        else:
+            f = lambda x: isinstance(x, Module) and exclude(x)
 
-        return parameters, build
+        excluded, state, treedef = tree_partition(f, self, f)
+        build = partial(tree_merge, right=excluded, treedef=treedef)
+
+        return state, build
 
 
 class Wrap(Module):
@@ -112,15 +115,11 @@ class Wrap(Module):
 
     wrapped: Any
 
-    def __init__(self, wrapped: Any, requires_grad: bool = True):
+    def __init__(self, wrapped: Any):
         self.wrapped = wrapped
-        self.requires_grad = requires_grad
 
     def __repr__(self) -> str:
-        lines = tree_repr(self.wrapped)
-        lines = f'{lines}, requires_grad={self.requires_grad}'
-
-        return f'{self.__class__.__name__}({lines})'
+        return f'{self.__class__.__name__}({tree_repr(self.wrapped)})'
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.wrapped, name)
@@ -151,6 +150,6 @@ class Sequential(Module):
         return f'{self.__class__.__name__}({lines})'
 
     def __call__(self, x: Any) -> Any:
-        for l in self.layers:
-            x = l(x)
+        for layer in self.layers:
+            x = layer(x)
         return x
