@@ -19,9 +19,6 @@ from .base import *
 class Linear(Module):
     r""""""
 
-    weight: Array
-    bias: Array
-
     def __init__(self, key: PRNGKey, in_size: int, out_size: int):
         k1, k2 = jax.random.split(key, 2)
         b = 1 / math.sqrt(in_size)

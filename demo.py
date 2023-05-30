@@ -5,7 +5,7 @@ import jax.numpy as jnp
 import optax
 
 from inox.nn import *
-from inox.tree_util import tree_repr
+from inox.tree_util import *
 
 
 if __name__ == '__main__':
@@ -28,10 +28,8 @@ if __name__ == '__main__':
     key, subkey = jax.random.split(key, 2)
 
     class MyModule(Module):
-        hello: bool = True
-        perceptron: Module
-
         def __init__(self, key):
+            self.hello = True
             self.perceptron = MLP(key, 3, 1, hidden_features=[64, 64])
 
         def __call__(self, x):

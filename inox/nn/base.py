@@ -8,10 +8,9 @@ __all__ = [
     'Sequential',
 ]
 
-import dataclasses
 import jax
+import jax.tree_util as jtu
 
-from functools import partial
 from jax import Array
 from textwrap import indent
 from typing import *
@@ -19,107 +18,84 @@ from typing import *
 from ..tree_util import *
 
 
-class DataTree(type):
+def is_array(x: Any) -> bool:
+    return isinstance(x, Array)
+
+
+def is_module(x: Any) -> bool:
+    return isinstance(x, Module)
+
+
+class Module(Namespace):
     r""""""
 
-    def __new__(cls, *args, **kwargs):
-        cls = super().__new__(cls, *args, **kwargs)
-        cls = dataclasses.dataclass(cls, init=False, repr=False)
-
-        jax.tree_util.register_pytree_node_class(cls)
-
-        return cls
-
-
-class ArrayRepr(object):
-    r""""""
-
-    def __init__(self, x: Array):
-        self.shape = x.shape
-        self.dtype = x.dtype
-
-    def __repr__(self) -> str:
-        return f'Array(shape={self.shape}, dtype={self.dtype})'
-
-
-class Module(metaclass=DataTree):
-    r""""""
-
-    meta: Any = dataclasses.field(default=None, repr=False)
-
-    def __init__(self):
-        pass
-
-    def __repr__(self) -> str:
-        self = jax.tree_util.tree_map(ArrayRepr, self)
-
-        names = [field.name for field in dataclasses.fields(self) if field.repr]
-        values = [getattr(self, name) for name in names]
-
-        lines = (
-            f'{name} = {tree_repr(value)}'
-            for name, value in zip(names, values)
-        )
-
-        lines = ',\n'.join(lines)
-
-        if '\n' in lines:
-            lines = '\n' + indent(lines, '  ') + '\n'
-
-        return f'{self.__class__.__name__}({lines})'
-
-    def tree_flatten(self):
-        names = [field.name for field in dataclasses.fields(self)]
-        values = [getattr(self, name) for name in names]
-
-        children, static, treedef = tree_partition(
-            f=lambda x: isinstance(x, Array) or isinstance(x, Module),
-            tree=values,
-            is_leaf=lambda x: isinstance(x, Module),
-        )
-
-        return children, (static, treedef)
-
-    @classmethod
-    def tree_unflatten(cls, auxiliary, children):
-        self = object.__new__(cls)
-
-        static, treedef = auxiliary
-        values = tree_merge(children, static, treedef)
-        names = [field.name for field in dataclasses.fields(self)]
-
-        for name, value in zip(names, values):
-            setattr(self, name, value)
-
-        return self
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
 
     def partition(
         self,
-        exclude: Callable[[Module], bool] = None,
-    ) -> Tuple[List[Array], Callable[[List[Array]], Module]]:
+        include: Callable[[Any], bool] = None,
+        exclude: Callable[[Any], bool] = None,
+    ) -> Tuple[List[Any], Callable[[List[Any]], Module]]:
         r""""""
 
+        if include is None:
+            include = is_array
+
         if exclude is None:
-            f = lambda x: False
+            exclude = lambda x: False
+
+        included, excluded, treedef = tree_partition(
+            f=lambda x: include(x) and not exclude(x),
+            tree=self,
+            is_leaf=lambda x: include(x) or exclude(x),
+        )
+
+        if all(x is None for x in excluded):
+            build = jtu.Partial(jtu.tree_unflatten, treedef)
         else:
-            f = lambda x: isinstance(x, Module) and exclude(x)
+            build = jtu.Partial(tree_merge, treedef, excluded)
 
-        excluded, state, treedef = tree_partition(f, self, f)
-        build = partial(tree_merge, right=excluded, treedef=treedef)
+        return included, build
 
-        return state, build
+    def tree_flatten(self):
+        children, static, treedef = tree_partition(
+            f=lambda x: is_array(x) or is_module(x),
+            tree=Namespace(self.__dict__),
+            is_leaf=is_module,
+        )
+
+        return children, (treedef, tuple(static))
+
+    def tree_flatten_with_keys(self):
+        children, auxilary = self.tree_flatten()
+        keys = tree_paths(
+            tree=Namespace(self.__dict__),
+            is_leaf=is_module,
+        )
+
+        return list(zip(keys, children)), auxilary
+
+    @classmethod
+    def tree_unflatten(cls, auxilary, children):
+        namespace = tree_merge(*auxilary, children)
+
+        self = object.__new__(cls)
+        self.__dict__ = namespace.__dict__
+
+        return self
 
 
 class Wrap(Module):
     r""""""
 
-    wrapped: Any
+    def __init__(self, wrapped: Any, /, **kwargs):
+        super().__init__(**kwargs)
 
-    def __init__(self, wrapped: Any):
         self.wrapped = wrapped
 
-    def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({tree_repr(self.wrapped)})'
+    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        return self.wrapped(*args, **kwargs)
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.wrapped, name)
@@ -127,29 +103,26 @@ class Wrap(Module):
     def __getitem__(self, key: Any) -> Any:
         return self.wrapped[key]
 
+    def tree_repr(self, **kwargs) -> str:
+        return f'{self.__class__.__name__}({tree_repr(self.wrapped, **kwargs)})'
+
 
 class Sequential(Module):
     r""""""
 
-    layers: Sequence[Module]
-
     def __init__(self, *layers: Module):
         self.layers = layers
-
-    def __repr__(self) -> str:
-        lines = [
-            f'({i}) {tree_repr(layer)}'
-            for i, layer in enumerate(self.layers)
-        ]
-
-        lines = '\n'.join(lines)
-
-        if '\n' in lines:
-            lines = '\n' + indent(lines, '  ') + '\n'
-
-        return f'{self.__class__.__name__}({lines})'
 
     def __call__(self, x: Any) -> Any:
         for layer in self.layers:
             x = layer(x)
         return x
+
+    def tree_repr(self, **kwargs) -> str:
+        lines = (tree_repr(layer, **kwargs) for layer in self.layers)
+        lines = ',\n'.join(lines)
+
+        if lines:
+            lines = '\n' + indent(lines, '  ') + '\n'
+
+        return f'{self.__class__.__name__}({lines})'
