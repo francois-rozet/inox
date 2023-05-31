@@ -1,18 +1,15 @@
-r"""Base building blocks"""
+r"""Base modules"""
 
 from __future__ import annotations
 
 __all__ = [
     'Module',
-    'Wrap',
-    'Sequential',
 ]
 
 import jax
 import jax.tree_util as jtu
 
 from jax import Array
-from textwrap import indent
 from typing import *
 
 from ..tree_util import *
@@ -84,45 +81,3 @@ class Module(Namespace):
         self.__dict__ = namespace.__dict__
 
         return self
-
-
-class Wrap(Module):
-    r""""""
-
-    def __init__(self, wrapped: Any, /, **kwargs):
-        super().__init__(**kwargs)
-
-        self.wrapped = wrapped
-
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
-        return self.wrapped(*args, **kwargs)
-
-    def __getattr__(self, name: str) -> Any:
-        return getattr(self.wrapped, name)
-
-    def __getitem__(self, key: Any) -> Any:
-        return self.wrapped[key]
-
-    def tree_repr(self, **kwargs) -> str:
-        return f'{self.__class__.__name__}({tree_repr(self.wrapped, **kwargs)})'
-
-
-class Sequential(Module):
-    r""""""
-
-    def __init__(self, *layers: Module):
-        self.layers = layers
-
-    def __call__(self, x: Any) -> Any:
-        for layer in self.layers:
-            x = layer(x)
-        return x
-
-    def tree_repr(self, **kwargs) -> str:
-        lines = (tree_repr(layer, **kwargs) for layer in self.layers)
-        lines = ',\n'.join(lines)
-
-        if lines:
-            lines = '\n' + indent(lines, '  ') + '\n'
-
-        return f'{self.__class__.__name__}({lines})'

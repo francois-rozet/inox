@@ -1,4 +1,7 @@
 r"""Neural networks, layers and modules"""
 
-from .base import *
-from .layers import *
+from .activation import *
+from .container import *
+from .linear import *
+from .module import *
+from .special import *
