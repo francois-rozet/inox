@@ -48,26 +48,26 @@ if __name__ == '__main__':
 
     # Training
     net.hello = False
-    state, build = net.partition()
+    params, buffers, build = net.partition()
+
+    def loss(params, buffers, x, y):
+        return mse(jax.vmap(build(params, buffers)), x, y)
 
     ## Optimizer
     optimizer = optax.adamw(learning_rate=1e-3)
-    opt_state = optimizer.init(state)
+    opt_state = optimizer.init(params)
 
     ## Loop
     @jax.jit
-    def step(state, opt_state):
-        def loss(state, x, y):
-            return mse(build(state), x, y)
+    def step(params, buffers, opt_state):
+        lval, grads = jax.value_and_grad(loss)(params, buffers, X, Y)
+        updates, opt_state = optimizer.update(grads, opt_state, params)
+        params = optax.apply_updates(params, updates)
 
-        loss, grads = jax.value_and_grad(loss)(state, X, Y)
-        updates, opt_state = optimizer.update(grads, opt_state, state)
-        state = optax.apply_updates(state, updates)
-
-        return state, opt_state, loss
+        return params, buffers, opt_state, lval
 
     for i in range(1024):
-        state, opt_state, loss = step(state, opt_state)
+        params, buffers, opt_state, lval = step(params, buffers, opt_state)
 
         if i % 128 == 0:
-            print(f'{i:04d}', ':', loss)
+            print(f'{i:04d}', ':', lval)

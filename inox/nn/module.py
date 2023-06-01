@@ -4,6 +4,7 @@ from __future__ import annotations
 
 __all__ = [
     'Module',
+    'Buffer',
 ]
 
 import jax
@@ -23,6 +24,10 @@ def is_module(x: Any) -> bool:
     return isinstance(x, Module)
 
 
+def is_buffer(x: Any) -> bool:
+    return isinstance(x, Buffer)
+
+
 class Module(Namespace):
     r""""""
 
@@ -33,14 +38,17 @@ class Module(Namespace):
         self,
         include: Callable[[Any], bool] = None,
         exclude: Callable[[Any], bool] = None,
-    ) -> Tuple[List[Any], Callable[[List[Any]], Module]]:
+    ) -> Tuple[List[Any], List[Any], Callable[[List[Any], List[Any]], Module]]:
         r""""""
+
+        if exclude is None:
+            if include is None:
+                exclude = is_buffer
+            else:
+                exclude = lambda x: False
 
         if include is None:
             include = is_array
-
-        if exclude is None:
-            exclude = lambda x: False
 
         included, excluded, treedef = tree_partition(
             f=lambda x: include(x) and not exclude(x),
@@ -48,12 +56,7 @@ class Module(Namespace):
             is_leaf=lambda x: include(x) or exclude(x),
         )
 
-        if all(x is None for x in excluded):
-            build = jtu.Partial(jtu.tree_unflatten, treedef)
-        else:
-            build = jtu.Partial(tree_merge, treedef, excluded)
-
-        return included, build
+        return included, excluded, jtu.Partial(tree_merge, treedef)
 
     def tree_flatten(self):
         children, static, treedef = tree_partition(
@@ -81,3 +84,9 @@ class Module(Namespace):
         self.__dict__ = namespace.__dict__
 
         return self
+
+
+class Buffer(Module):
+    r""""""
+
+    pass
