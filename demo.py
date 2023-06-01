@@ -23,14 +23,22 @@ if __name__ == '__main__':
     # Network
     class MyModule(inox.nn.Module):
         def __init__(self, key):
+            keys = jax.random.split(key, 3)
+
             self.hello = True
-            self.perceptron = inox.nn.MLP(key, 3, 1, hidden_features=[64, 64])
+            self.mlp = inox.nn.Sequential(
+                inox.nn.Linear(keys[0], 3, 64),
+                inox.nn.ReLU(),
+                inox.nn.Linear(keys[1], 64, 64),
+                inox.nn.ReLU(),
+                inox.nn.Linear(keys[2], 64, 1),
+            )
 
         def __call__(self, x):
             if self.hello:
                 print('Hello, World!')
 
-            return jnp.squeeze(self.perceptron(x))
+            return jnp.squeeze(self.mlp(x), axis=-1)
 
     net = MyModule(rng())
 
