@@ -58,6 +58,19 @@ class Module(Namespace):
 
         return included, excluded, jtu.Partial(tree_merge, treedef)
 
+    def replace(self, **kwargs):
+        r""""""
+
+        for name, value in kwargs.items():
+            if hasattr(self, name):
+                setattr(self, name, value)
+
+        leaves = jtu.tree_leaves(self.__dict__, is_leaf=is_module)
+
+        for leaf in leaves:
+            if is_module(leaf):
+                leaf.replace(**kwargs)
+
     def tree_flatten(self):
         children, static, treedef = tree_partition(
             f=lambda x: is_array(x) or is_module(x),

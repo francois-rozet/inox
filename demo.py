@@ -23,12 +23,13 @@ if __name__ == '__main__':
     # Network
     class MyModule(inox.nn.Module):
         def __init__(self, key):
-            keys = jax.random.split(key, 3)
+            keys = jax.random.split(key, 4)
 
             self.hello = True
             self.mlp = inox.nn.Sequential(
                 inox.nn.Linear(keys[0], 3, 64),
                 inox.nn.ReLU(),
+                inox.nn.Dropout(keys[3], p=0.05),
                 inox.nn.Linear(keys[1], 64, 64),
                 inox.nn.ReLU(),
                 inox.nn.Linear(keys[2], 64, 1),
@@ -68,8 +69,14 @@ if __name__ == '__main__':
 
         return params, buffers, opt_state, lval
 
-    for i in range(1024):
+    for i in range(1025):
         params, buffers, opt_state, lval = step(params, buffers, opt_state)
 
         if i % 128 == 0:
             print(f'{i:04d}', ':', lval)
+
+    # Evaluation
+    net = build(params, buffers)
+    net.replace(training=False)  # turn off dropout
+
+    print(jax.jit(mse)(net, X, Y))
