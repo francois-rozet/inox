@@ -14,12 +14,26 @@ from ..tree_util import *
 
 
 class Sequential(Module):
-    r""""""
+    r"""Creates a composition of layers.
+
+    .. math:: y = f_n \circ \dots \circ f_2 \circ f_1(x)
+
+    Arguments:
+        layers: A sequence of layers :math:`f_1, f_2, \dots, f_n`.
+    """
 
     def __init__(self, *layers: Module):
         self.layers = layers
 
     def __call__(self, x: Any) -> Any:
+        r"""
+        Arguments:
+            x: The input :math:`x`.
+
+        Returns:
+            The output :math:`y`.
+        """
+
         for layer in self.layers:
             x = layer(x)
         return x

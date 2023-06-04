@@ -15,7 +15,25 @@ from ..random import *
 
 
 class Dropout(Buffer):
-    r""""""
+    r"""Creates a dropout layer.
+
+    At training,
+
+    .. math:: y = \frac{b x}{q}
+
+    where :math:`b \in \{0, 1\}` is drawn from a Bernoulli distribution such that
+    :math:`P(b = 0) = p` and :math:`P(b = 1) = 1 - p = q`. This has proven to be an effective
+    technique for regularization and preventing overfitting. At evaluation, the layer
+    simply computes the identity :math:`y = x`.
+
+    References:
+        | A Simple Way to Prevent Neural Networks from Overfitting (Srivastava et al., 2014)
+        | https://jmlr.org/papers/v15/srivastava14a
+
+    Arguments:
+        key: A PRNG key for initialization.
+        p: The masking probability :math:`p \in [0, 1]`.
+    """
 
     def __init__(self, key: KeyArray, p: float = 0.5):
         self.q = 1 - p
@@ -23,7 +41,13 @@ class Dropout(Buffer):
         self.training = True
 
     def __call__(self, x: Array) -> Array:
-        r""""""
+        r"""
+        Arguments:
+            x: The input tensor :math:`x`, with shape :math:`(*)`.
+
+        Returns:
+            The output tensor :math:`y`, with shape :math:`(*)`.
+        """
 
         if self.training:
             b = self.rng.bernoulli(shape=x.shape, p=self.q)

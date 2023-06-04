@@ -17,7 +17,16 @@ from .module import *
 
 
 class Linear(Module):
-    r""""""
+    r"""Creates a linear layer.
+
+    .. math:: y = W \cdot x + b
+
+    Arguments:
+        key: A PRNG key for initialization.
+        in_features: The number of input features :math:`C`.
+        out_features: The number of output features  :math:`C'`.
+        bias: Whether the layer learns an additive bias :math:`b` or not.
+    """
 
     def __init__(
         self,
@@ -47,7 +56,13 @@ class Linear(Module):
             self.bias = None
 
     def __call__(self, x: Array) -> Array:
-        r""""""
+        r"""
+        Arguments:
+            x: The input vector :math:`x`, with shape :math:`(*, C)`.
+
+        Returns:
+            The output vector :math:`y`, with shape :math:`(*, C')`.
+        """
 
         if self.bias is None:
             return x @ self.weight
@@ -56,7 +71,27 @@ class Linear(Module):
 
 
 class Conv(Module):
-    r""""""
+    r"""Creates a convolution layer.
+
+    .. math:: y = W * x + b
+
+    References:
+        | A guide to convolution arithmetic for deep learning (Dumoulin et al., 2016)
+        | https://arxiv.org/abs/1603.07285
+
+    Arguments:
+        key: A PRNG key for initialization.
+        spatial: The number of spatial axes :math:`S`.
+        in_channels: The number of input channels :math:`C`.
+        out_channels: The number of output channels  :math:`C'`.
+        bias: Whether the layer learns an additive bias :math:`b` or not.
+        kernel_size: The size of the kernel :math:`W` in each spatial axis.
+        stride: The stride coefficient in each spatial axis.
+        dilation: The dilation coefficient in each spatial axis.
+        padding: The padding applied to each end of each spatial axis.
+        groups: The number of channel groups :math:`G`.
+            Both :math:`C` and :math:`C'` must be divisible by :math:`G`.
+    """
 
     def __init__(
         self,
@@ -118,7 +153,21 @@ class Conv(Module):
         self.groups = groups
 
     def __call__(self, x: Array) -> Array:
-        r""""""
+        r"""
+        Arguments:
+            x: The input tensor :math:`x`, with shape :math:`(*, H_1, \dots, H_S, C)`.
+
+        Returns:
+            The output tensor :math:`y`, with shape :math:`(*, H_1', \dots, H_S', C')`,
+            such that
+
+            .. math:: H_i' =
+                \left\lfloor \frac{H_i - d_i \times (k_i - 1) + p_i}{s_i} + 1 \right\rfloor
+
+            where :math:`k_i`, :math:`s_i`, :math:`d_i` and :math:`p_i` are respectively
+            the kernel size, the stride coefficient, the dilation coefficient and the
+            total padding of the :math:`i`-th spatial axis.
+        """
 
         batch = x.shape[:-self.ndim]
 
@@ -153,10 +202,45 @@ class Conv(Module):
 
 
 class ConvTransposed(Conv):
-    r""""""
+    r"""Creates a transposed convolution layer.
+
+    This layer can be seen as the gradient of :class:`Conv` with respect to its input.
+    It is also known as a "deconvolution", altough it does not actually compute the
+    inverse of a convolution.
+
+    References:
+        | A guide to convolution arithmetic for deep learning (Dumoulin et al., 2016)
+        | https://arxiv.org/abs/1603.07285
+
+    Arguments:
+        key: A PRNG key for initialization.
+        spatial: The number of spatial axes :math:`S`.
+        in_channels: The number of input channels :math:`C`.
+        out_channels: The number of output channels  :math:`C'`.
+        bias: Whether the layer learns an additive bias :math:`b` or not.
+        kernel_size: The size of the kernel :math:`W` in each spatial axis.
+        stride: The stride coefficient in each spatial axis.
+        dilation: The dilation coefficient in each spatial axis.
+        padding: The padding applied to each end of each spatial axis.
+        groups: The number of channel groups :math:`G`.
+            Both :math:`C` and :math:`C'` must be divisible by :math:`G`.
+    """
 
     def __call__(self, x: Array) -> Array:
-        r""""""
+        r"""
+        Arguments:
+            x: The input tensor :math:`x`, with shape :math:`(*, H_1, \dots, H_S, C)`.
+
+        Returns:
+            The output tensor :math:`y`, with shape :math:`(*, H_1', \dots, H_S', C')`,
+            such that
+
+            .. math:: H_i' = (H_i - 1) \times s_i + d_i \times (k_i - 1) - p_i + 1
+
+            where :math:`k_i`, :math:`s_i`, :math:`d_i` and :math:`p_i` are respectively
+            the kernel size, the stride coefficient, the dilation coefficient and the
+            total padding of the :math:`i`-th spatial axis.
+        """
 
         batch = x.shape[:-self.ndim]
 

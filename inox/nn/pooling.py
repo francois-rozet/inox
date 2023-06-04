@@ -8,6 +8,7 @@ __all__ = [
 import jax
 import math
 
+from functools import wraps
 from jax import Array
 from typing import *
 
@@ -15,7 +16,7 @@ from .module import *
 
 
 class Pool(Module):
-    r""""""
+    r"""Abstract spatial pooling class."""
 
     def __init__(
         self,
@@ -46,7 +47,20 @@ class Pool(Module):
         self.padding = padding
 
     def __call__(self, x: Array) -> Array:
-        r""""""
+        r"""
+        Arguments:
+            x: The input tensor :math:`x`, with shape :math:`(*, H_1, \dots, H_S, C)`.
+
+        Returns:
+            The output tensor :math:`y`, with shape :math:`(*, H_1', \dots, H_S', C)`,
+            such that
+
+            .. math:: H_i' = \left\lfloor \frac{H_i - k_i + p_i}{s_i} + 1 \right\rfloor
+
+            where :math:`k_i`, :math:`s_i` and :math:`p_i` are respectively the window
+            size, the stride coefficient and the total padding of the :math:`i`-th
+            spatial axis.
+        """
 
         batch = x.shape[:-self.ndim]
 
@@ -69,11 +83,17 @@ class Pool(Module):
 
 
 class AvgPool(Pool):
-    r""""""
+    r"""Creates an average spatial pooling layer.
 
+    Arguments:
+        spatial: The number of spatial axes :math:`S`.
+        window_size: The size of the pooling window in each spatial axis.
+        stride: The stride coefficient in each spatial axis.
+        padding: The padding applied to each end of each spatial axis.
+    """
+
+    @wraps(Pool.__call__)
     def __call__(self, x: Array) -> Array:
-        r""""""
-
         return super().__call__(x) / math.prod(self.kernel_size)
 
     @staticmethod
@@ -86,7 +106,18 @@ class AvgPool(Pool):
 
 
 class MaxPool(Pool):
-    r""""""
+    r"""Creates a maximum spatial pooling layer.
+
+    Arguments:
+        spatial: The number of spatial axes :math:`S`.
+        window_size: The size of the pooling window in each spatial axis.
+        stride: The stride coefficient in each spatial axis.
+        padding: The padding applied to each end of each spatial axis.
+    """
+
+    @wraps(Pool.__call__)
+    def __call__(self, x: Array) -> Array:
+        return super().__call__(x)
 
     @staticmethod
     def operator(x: Array, y: Array) -> Array:

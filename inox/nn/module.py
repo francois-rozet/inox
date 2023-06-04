@@ -33,7 +33,66 @@ def is_buffer(x: Any) -> bool:
 
 
 class Module(Namespace):
-    r""""""
+    r"""Base class for all modules.
+
+    Models should subclass this class. A module is a PyTree whose attributes
+    are branches, meaning that you can assign any PyTree-compatible object (:py:`tuple`,
+    :py:`list`, :py:`dict`, ...), including other modules, as regular attribute.
+
+    .. code-block:: python
+
+        import jax
+        import inox
+        import inox.nn as nn
+
+        class Classifier(nn.Module):
+            def __init__(self, key, in_features, num_classes):
+                keys = jax.random.split(key, 3)
+
+                self.l1 = nn.Linear(keys[0], in_features, 64)
+                self.l2 = nn.Linear(keys[1], 64, num_classes)
+                self.relu = nn.ReLU()
+                self.dropout = nn.Dropout(keys[2], p=0.5)
+                self.softmax = nn.Softmax()
+
+                self.return_logits = True  # static leaf
+
+            def __call__(self, x):
+                x = self.relu(self.l1(x))
+                x = self.l2(self.dropout(x))
+
+                if self.return_logits:
+                    return x
+                else:
+                    return self.softmax(x)
+
+        key = jax.random.PRNGKey(0)
+        model = Classifier(key)
+
+    Additionally, modules will automatically detect non-array leaves and mark them as
+    static. This results in module instances compatible with :func:`jax.jit` and
+    :func:`jax.vmap` out of the box.
+
+    .. code-block:: python
+
+        from optax import softmax_cross_entropy
+
+        def loss(model, x, labels):
+            return jax.mean(softmax_cross_entropy(jax.vmap(model)(x), labels))
+
+        jax.jit(loss)(model, data, labels)  # works like a charm
+
+    However, in-place modification of attributes does not work as one would expect at
+    first sight. The correct way to modify an attribute is to replace it. The only
+    exception are sub-modules, whose attributes can also be replaced in-place.
+
+    .. code-block:: python
+
+        model.attr = ['a', 'b']
+        model.attr.append('c')  # model.attr is still ['a', 'b']
+        model.attr = [*model.attr, 'c']  # model.attr is now ['a', 'b', 'c']
+        model.dropout.q = 0.9  # model.dropout has changed
+    """
 
     def __getattribute__(self, name: str):
         if name in super().__dict__:
@@ -63,7 +122,34 @@ class Module(Namespace):
         include: Callable[[Any], bool] = None,
         exclude: Callable[[Any], bool] = None,
     ) -> Tuple[List[Any], List[Any], Callable[[List[Any], List[Any]], Module]]:
-        r""""""
+        r"""Splits the module into two partitions based on inclusion and exclusion rules.
+
+        By default, all :class:`Buffer` instances in the module tree are excluded from
+        the first partition, leaving only array leaves that should be optimized. This is
+        especially useful for training with :mod:`optax` optimizers.
+
+        .. code-block:: python
+
+            params, buffers, build = model.partition()
+            optimizer = optax.adamw(learning_rate=1e-3)
+            opt_state = optimizer.init(params)
+
+            for _ in range(epochs):  # training loop
+                ...
+                updates, opt_state = optimizer.update(grads, opt_state, params)
+                params = optax.apply_updates(params, updates)
+                ...
+
+            model = build(params, buffers)
+
+        Arguments:
+            include: The inclusion rule. If :py:`include=None`, only include arrays.
+            exclude: The exclusion rule. If :py:`include=None` and :py:`exclude=None`,
+                exclude :class:`Buffer` instances.
+
+        Returns:
+            The two partitions and a function to re-construct the module.
+        """
 
         if exclude is None:
             if include is None:
@@ -83,7 +169,19 @@ class Module(Namespace):
         return included, excluded, jtu.Partial(tree_merge, treedef)
 
     def replace(self, **kwargs):
-        r""""""
+        r"""Replaces all occurrences of some attributes in the module tree.
+
+        This is primarily useful to switch the mode of submodules that behave
+        differently at training and evaluation, such as :class:`inox.nn.dropout.Dropout`
+        and :class:`inox.nn.normalization.BatchNorm`.
+
+        .. code-block:: python
+
+            model.replace(training=False)  # turns off dropout
+
+        Arguments:
+            kwargs: The attributes to replace and their new values.
+        """
 
         for name, value in kwargs.items():
             if hasattr(self, name):
@@ -97,6 +195,14 @@ class Module(Namespace):
 
 
 class Buffer(Module):
-    r""""""
+    r"""Subclass of :class:`Module` that is meant to contain non-optimizable arrays.
+
+    All arrays that should not be optimized by gradient descent, like running statistics
+    or pseudo-random number generator states, should be leaves of a :class:`Buffer`
+    instance.
+
+    See also:
+        :class:`inox.nn.normalization.BatchNorm` and :class:`inox.nn.dropout.Dropout` are good examples using :class:`Buffer`.
+    """
 
     pass

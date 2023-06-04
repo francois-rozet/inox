@@ -15,13 +15,12 @@ from textwrap import indent
 from typing import *
 
 
-Leaf = TypeVar('Leaf', bound=Any)
 PyTree = TypeVar('PyTree', bound=Any)
 PyTreeDef = TypeVar('PyTreeDef')
 
 
 class PyTreeMeta(type):
-    r""""""
+    r"""PyTree meta-class."""
 
     def __new__(cls, *args, **kwargs) -> type:
         cls = super().__new__(cls, *args, **kwargs)
@@ -35,7 +34,26 @@ class PyTreeMeta(type):
 
 
 class Namespace(metaclass=PyTreeMeta):
-    r""""""
+    r"""PyTree class for name-value mappings.
+
+    Arguments:
+        kwargs: A name-value mapping.
+
+    Example:
+        >>> ns := Namespace(a=1, b='2'); ns
+        Namespace(
+          a = 1,
+          b = '2'
+        )
+        >>> ns.c = [3]; ns
+        Namespace(
+          a = 1,
+          b = '2',
+          c = [3]
+        )
+        >>> jax.tree_util.tree_leaves(ns)
+        [1, '2', 3]
+    """
 
     def __init__(self, **kwargs):
         for name, value in kwargs.items():
@@ -80,12 +98,28 @@ class Namespace(metaclass=PyTreeMeta):
 
 
 class Static(metaclass=PyTreeMeta):
-    r""""""
+    r"""Wraps an hashable object as a leafless PyTree.
+
+    Arguments:
+        x: An hashable object to wrap.
+
+    Example:
+        >>> x = Static((0, 'one', None))
+        >>> jax.tree_util.tree_leaves(x)
+        []
+        >>> jax.tree_util.tree_structure(x)
+        PyTreeDef(CustomNode(Static[(0, 'one', None)], []))
+    """
 
     def __init__(self, x: Hashable):
         self.x = x
 
     def __call__(self) -> Hashable:
+        r"""
+        Returns:
+            The wrapped object.
+        """
+
         return self.x
 
     def __repr__(self) -> str:
@@ -100,11 +134,32 @@ class Static(metaclass=PyTreeMeta):
 
 
 def tree_partition(
-    f: Callable[[Leaf], bool],
+    f: Callable[[Any], bool],
     tree: PyTree,
     is_leaf: Callable[[Any], bool] = None,
-) -> Tuple[List[Leaf], List[Leaf], PyTreeDef]:
-    r""""""
+) -> Tuple[List[Any], List[Any], PyTreeDef]:
+    r"""Flattens a tree and splits the leaves into two partitions.
+
+    See also:
+        :func:`tree_merge`
+
+    Arguments:
+        f: A predicate choosing the partition of each leaf.
+        tree: The tree to flatten.
+        is_leaf: A predicate for what to consider as a leaf.
+
+    Returns:
+        The two partitions and the structure definition of the tree.
+
+    Example:
+        >>> f = lambda x: isinstance(x, str)
+        >>> tree = [1, 'two', (True, 'False')]
+        >>> left, right, treedef = tree_partition(f, tree)
+        >>> left
+        [None, 'two', None, 'False']
+        >>> right
+        [1, None, True, None]
+    """
 
     leaves, treedef = jtu.tree_flatten(tree, is_leaf)
     left = [x if f(x) else None for x in leaves]
@@ -115,10 +170,27 @@ def tree_partition(
 
 def tree_merge(
     treedef: PyTreeDef,
-    left: List[Leaf],
-    right: List[Leaf],
+    left: List[Any],
+    right: List[Any],
 ) -> PyTree:
-    r""""""
+    r"""Merges two partitions as a single tree.
+
+    See also:
+        :func:`tree_partition`
+
+    Arguments:
+        treedef: The PyTree structure definition.
+        left: The left partition.
+        right: The right partition.
+
+    Returns:
+        The resulting tree.
+
+    Example:
+        >>> left = [None if x is None else x.upper() for x in left]
+        >>> tree_merge(treedef, left, right)
+        [1, 'TWO', (True, 'FALSE')]
+    """
 
     leaves = [x if y is None else y for x, y in zip(left, right)]
     tree = jtu.tree_unflatten(treedef, leaves)
@@ -131,10 +203,33 @@ def tree_repr(
     /,
     linewidth: int = 88,
     shapeonly: bool = True,
-    threshold: int = 7,
+    threshold: int = 6,
     **kwargs,
 ) -> str:
-    r""""""
+    r"""Creates a pretty tree representation of an object.
+
+    Arguments:
+        x: An object to represent.
+        linewidth: The maximum line width before elements of tuples, lists and dicts
+            are represented on separate lines.
+        shapeonly: Whether to represent the shape of arrays instead of their elements.
+        threshold: The maximum number of elements before tuples, lists and dicts are
+            summarized.
+
+    Returns:
+        The representation string.
+
+    Example:
+        >>> tree = [1, 'two', (True, False), list(range(56)), {7: jax.numpy.arange(8), None: '10'}]
+        >>> print(tree_repr(tree))
+        [
+          1,
+          'two',
+          (True, False),
+          [0, 1, 2, ..., 53, 54, 55],
+          {7: Array(shape=(8,), dtype=int32), None: '10'}
+        ]
+    """
 
     kwargs.update(
         linewidth=linewidth,
