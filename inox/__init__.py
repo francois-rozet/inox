@@ -5,4 +5,3 @@ __version__ = '0.0.0'
 from . import nn
 from . import random
 from . import tree_util
-from .api import vmap

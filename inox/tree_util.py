@@ -2,7 +2,7 @@ r"""Extended utilities for tree-like data structures"""
 
 __all__ = [
     'Namespace',
-    'tree_paths',
+    'Static',
     'tree_partition',
     'tree_merge',
     'tree_repr',
@@ -23,7 +23,7 @@ PyTreeDef = TypeVar('PyTreeDef')
 class PyTreeMeta(type):
     r""""""
 
-    def __new__(cls, *args, **kwargs):
+    def __new__(cls, *args, **kwargs) -> type:
         cls = super().__new__(cls, *args, **kwargs)
 
         if hasattr(cls, 'tree_flatten_with_keys'):
@@ -37,11 +37,9 @@ class PyTreeMeta(type):
 class Namespace(metaclass=PyTreeMeta):
     r""""""
 
-    def __init__(self, __dict__: Dict[str, Any] = None, /, **kwargs):
-        if __dict__ is None:
-            self.__dict__.update(**kwargs)
-        else:
-            self.__dict__ = __dict__
+    def __init__(self, **kwargs):
+        for name, value in kwargs.items():
+            setattr(self, name, value)
 
     def __repr__(self) -> str:
         return tree_repr(self)
@@ -81,16 +79,24 @@ class Namespace(metaclass=PyTreeMeta):
         return self
 
 
-def tree_paths(
-    tree: PyTree,
-    is_leaf: Callable[[Any], bool] = None,
-) -> List[str]:
+class Static(metaclass=PyTreeMeta):
     r""""""
 
-    return [
-        ''.join(map(str, path))
-        for path, _ in jtu._generate_key_paths_((), tree, is_leaf)
-    ]
+    def __init__(self, x: Hashable):
+        self.x = x
+
+    def __call__(self) -> Hashable:
+        return self.x
+
+    def __repr__(self) -> str:
+        return repr(self.x)
+
+    def tree_flatten(self):
+        return (), self.x
+
+    @classmethod
+    def tree_unflatten(cls, x, _):
+        return cls(x)
 
 
 def tree_partition(

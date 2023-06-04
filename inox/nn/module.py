@@ -24,6 +24,10 @@ def is_module(x: Any) -> bool:
     return isinstance(x, Module)
 
 
+def is_static(x: Any) -> bool:
+    return isinstance(x, Static)
+
+
 def is_buffer(x: Any) -> bool:
     return isinstance(x, Buffer)
 
@@ -31,8 +35,28 @@ def is_buffer(x: Any) -> bool:
 class Module(Namespace):
     r""""""
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+    def __getattribute__(self, name: str):
+        if name in super().__dict__:
+            return jtu.tree_map(
+                f=lambda x: x() if is_static(x) else x,
+                tree=super().__dict__[name],
+                is_leaf=lambda x: is_module(x) or is_static(x),
+            )
+        else:
+            return super().__getattribute__(name)
+
+    def __setattr__(self, name: str, value: Any):
+        super().__setattr__(name, value)
+
+        if name in super().__dict__:
+            super().__setattr__(
+                name,
+                jtu.tree_map(
+                    f=lambda x: x if is_array(x) or is_module(x) else Static(x),
+                    tree=value,
+                    is_leaf=lambda x: is_module(x),
+                )
+            )
 
     def partition(
         self,
@@ -70,33 +94,6 @@ class Module(Namespace):
         for leaf in leaves:
             if is_module(leaf):
                 leaf.replace(**kwargs)
-
-    def tree_flatten(self):
-        children, static, treedef = tree_partition(
-            f=lambda x: is_array(x) or is_module(x),
-            tree=Namespace(self.__dict__),
-            is_leaf=is_module,
-        )
-
-        return children, (treedef, tuple(static))
-
-    def tree_flatten_with_keys(self):
-        children, auxilary = self.tree_flatten()
-        keys = tree_paths(
-            tree=Namespace(self.__dict__),
-            is_leaf=is_module,
-        )
-
-        return list(zip(keys, children)), auxilary
-
-    @classmethod
-    def tree_unflatten(cls, auxilary, children):
-        namespace = tree_merge(*auxilary, children)
-
-        self = object.__new__(cls)
-        self.__dict__ = namespace.__dict__
-
-        return self
 
 
 class Buffer(Module):
