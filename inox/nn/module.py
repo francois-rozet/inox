@@ -136,6 +136,7 @@ class Module(Namespace):
 
             for _ in range(epochs):  # training loop
                 ...
+                grads = jax.grad(loss)(params, ...)
                 updates, opt_state = optimizer.update(grads, opt_state, params)
                 params = optax.apply_updates(params, updates)
                 ...
@@ -194,15 +195,13 @@ class Module(Namespace):
                 leaf.replace(**kwargs)
 
 
-class Buffer(Module):
-    r"""Subclass of :class:`Module` that is meant to contain non-optimizable arrays.
+class Buffer(Namespace):
+    r"""Subclass of :class:`inox.tree_util.Namespace` intended to contain
+    non-optimizable arrays.
 
-    All arrays that should not be optimized by gradient descent, like running statistics
-    or pseudo-random number generator states, should be leaves of a :class:`Buffer`
-    instance.
-
-    See also:
-        :class:`inox.nn.normalization.BatchNorm` and :class:`inox.nn.dropout.Dropout` are good examples using :class:`Buffer`.
+    All arrays that do not require gradients in a module, such as constants,
+    hyper-parameters, running statistics or RNG keys, should be leaves of a
+    :class:`Buffer` instance.
     """
 
     pass

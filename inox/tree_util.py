@@ -3,6 +3,8 @@ r"""Extended utilities for tree-like data structures"""
 __all__ = [
     'Namespace',
     'Static',
+    'tree_copy',
+    'tree_eq',
     'tree_partition',
     'tree_merge',
     'tree_repr',
@@ -133,15 +135,60 @@ class Static(metaclass=PyTreeMeta):
         return cls(x)
 
 
+def tree_copy(
+    tree: PyTree,
+    is_leaf: Callable[[Any], bool] = None,
+) -> PyTree:
+    r"""Copies a tree down to its leaves.
+
+    Arguments:
+        tree: The tree to copy.
+        is_leaf: A predicate for what to consider as a leaf.
+
+    Returns:
+        A copy of :py:`tree`.
+    """
+
+    leaves, treedef = jtu.tree_flatten(tree, is_leaf)
+    new = jtu.tree_unflatten(treedef, leaves)
+
+    return new
+
+
+def tree_eq(a: PyTree, b: PyTree, verbose: bool = False) -> bool:
+    r"""Compares the leaves of two trees with the same structure.
+
+    The primary usage of :func:`tree_eq` is to detect leaves that should mutate during a
+    procedure, but do not. This issue typically appears when the mutation is performed
+    within the scope of a pure function (:func:`jax.jit`, :func:`jax.vmap`,
+    :func:`jax.lax.scan`, ...).
+
+    Arguments:
+        a: The first tree.
+        b: The second tree.
+        verbose: If :py:`True`, prints a leaf-level equality report.
+
+    Returns:
+        :py:`True` if all leaves are identical (:py:`x is y`), :py:`False` otherwise.
+    """
+
+    eqs = jtu.tree_map(lambda x, y: x is y, a, b)
+
+    if verbose:
+        leaves, _ = jtu.tree_flatten_with_path(eqs)
+
+        for path, eq in leaves:
+            print(str(eq).ljust(5), ''.join(map(str, path)))
+
+    return all(jtu.tree_leaves(eqs))
+
+
 def tree_partition(
     f: Callable[[Any], bool],
     tree: PyTree,
     is_leaf: Callable[[Any], bool] = None,
 ) -> Tuple[List[Any], List[Any], PyTreeDef]:
     r"""Flattens a tree and splits the leaves into two partitions.
-
-    See also:
-        :func:`tree_merge`
 
     Arguments:
         f: A predicate choosing the partition of each leaf.
@@ -175,9 +222,6 @@ def tree_merge(
 ) -> PyTree:
     r"""Merges two partitions as a single tree.
 
-    See also:
-        :func:`tree_partition`
-
     Arguments:
         treedef: The PyTree structure definition.
         left: The left partition.
@@ -199,17 +243,17 @@ def tree_merge(
 
 
 def tree_repr(
-    x: Any,
+    x: PyTree,
     /,
     linewidth: int = 88,
     shapeonly: bool = True,
     threshold: int = 6,
     **kwargs,
 ) -> str:
-    r"""Creates a pretty tree representation of an object.
+    r"""Creates a pretty representation of a tree.
 
     Arguments:
-        x: An object to represent.
+        x: The tree to represent.
         linewidth: The maximum line width before elements of tuples, lists and dicts
             are represented on separate lines.
         shapeonly: Whether to represent the shape of arrays instead of their elements.
@@ -220,7 +264,7 @@ def tree_repr(
         The representation string.
 
     Example:
-        >>> tree = [1, 'two', (True, False), list(range(56)), {7: jax.numpy.arange(8), None: '10'}]
+        >>> tree = [1, 'two', (True, False), list(range(56)), {7: jnp.arange(8), None: '10'}]
         >>> print(tree_repr(tree))
         [
           1,

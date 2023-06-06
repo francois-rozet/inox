@@ -23,13 +23,12 @@ if __name__ == '__main__':
     # Network
     class MyModule(inox.nn.Module):
         def __init__(self, key):
-            keys = jax.random.split(key, 4)
+            keys = jax.random.split(key, 3)
 
             self.hello = True
             self.mlp = inox.nn.Sequential(
                 inox.nn.Linear(keys[0], 3, 64),
                 inox.nn.ReLU(),
-                inox.nn.Dropout(keys[3], p=0.05),
                 inox.nn.Linear(keys[1], 64, 64),
                 inox.nn.ReLU(),
                 inox.nn.Linear(keys[2], 64, 1),
@@ -53,7 +52,7 @@ if __name__ == '__main__':
     net.hello = False
     params, buffers, build = net.partition()
 
-    def loss(params, buffers, x, y):
+    def loss_fn(params, buffers, x, y):
         return mse(jax.vmap(build(params, buffers)), x, y)
 
     ## Optimizer
@@ -63,20 +62,19 @@ if __name__ == '__main__':
     ## Loop
     @jax.jit
     def step(params, buffers, opt_state):
-        lval, grads = jax.value_and_grad(loss)(params, buffers, X, Y)
+        loss, grads = jax.value_and_grad(loss_fn)(params, buffers, X, Y)
         updates, opt_state = optimizer.update(grads, opt_state, params)
         params = optax.apply_updates(params, updates)
 
-        return params, buffers, opt_state, lval
+        return params, opt_state, loss
 
     for i in range(1025):
-        params, buffers, opt_state, lval = step(params, buffers, opt_state)
+        params, opt_state, loss = step(params, buffers, opt_state)
 
         if i % 128 == 0:
-            print(f'{i:04d}', ':', lval)
+            print(f'{i:04d}', ':', loss)
 
     # Evaluation
     net = build(params, buffers)
-    net.replace(training=False)  # turn off dropout
 
     print(jax.jit(mse)(net, X, Y))

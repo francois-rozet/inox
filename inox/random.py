@@ -65,3 +65,6 @@ class Generator(Namespace):
             return lambda *args, **kwargs: attr(self(), *args, **kwargs)
         else:
             return attr
+
+    def tree_repr(self, **kwargs) -> str:
+        return f'{self.__class__.__name__}(key={self.key})'

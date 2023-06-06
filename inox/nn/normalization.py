@@ -44,14 +44,13 @@ class BatchNorm(Module):
         epsilon: float = 1e-05,
         momentum: float = 0.9,
     ):
-        self.running = Buffer(
-            mean=jnp.zeros((channels,)),
-            var=jnp.ones((channels,)),
-        )
-
         self.epsilon = epsilon
         self.momentum = momentum
         self.training = True
+        self.state = Buffer(
+            mean=jnp.zeros((channels,)),
+            var=jnp.ones((channels,)),
+        )
 
     def __call__(self, x: Array) -> Array:
         r"""
@@ -70,11 +69,13 @@ class BatchNorm(Module):
 
             update = lambda x, y: self.momentum * x + (1 - self.momentum) * y
 
-            self.running.mean = update(self.running.mean, jax.lax.stop_gradient(mean))
-            self.running.var = update(self.running.var, jax.lax.stop_gradient(var))
+            state = self.state
+            state.mean = update(state.mean, jax.lax.stop_gradient(mean))
+            state.var = update(state.var, jax.lax.stop_gradient(var))
+            self.state = state
         else:
-            mean = self.running.mean
-            var = self.running.var
+            mean = self.state.mean
+            var = self.state.var
 
         return (x - mean) / jnp.sqrt(var + self.epsilon)
 

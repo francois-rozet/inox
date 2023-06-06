@@ -14,7 +14,7 @@ from .module import *
 from ..random import *
 
 
-class Dropout(Buffer):
+class Dropout(Module):
     r"""Creates a dropout layer.
 
     At training,
@@ -37,8 +37,8 @@ class Dropout(Buffer):
 
     def __init__(self, key: KeyArray, p: float = 0.5):
         self.q = 1 - p
-        self.rng = Generator(key)
         self.training = True
+        self.state = Buffer(rng=Generator(key))
 
     def __call__(self, x: Array) -> Array:
         r"""
@@ -50,7 +50,10 @@ class Dropout(Buffer):
         """
 
         if self.training:
-            b = self.rng.bernoulli(shape=x.shape, p=self.q)
+            state = self.state
+            b = state.rng.bernoulli(shape=x.shape, p=self.q)
+            self.state = state
+
             return jax.numpy.where(b, x / self.q, 0)
         else:
             return x
