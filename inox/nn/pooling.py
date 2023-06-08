@@ -21,15 +21,15 @@ class Pool(Module):
     def __init__(
         self,
         spatial: int,
-        kernel_size: Union[int, Sequence[int]],
+        window_size: Union[int, Sequence[int]],
         stride: Union[int, Sequence[int]] = None,
         padding: Union[int, Sequence[int], Sequence[Tuple[int, int]]] = 0,
     ):
-        if isinstance(kernel_size, int):
-            kernel_size = [kernel_size] * spatial
+        if isinstance(window_size, int):
+            window_size = [window_size] * spatial
 
         if stride is None:
-            stride = kernel_size
+            stride = window_size
         elif isinstance(stride, int):
             stride = [stride] * spatial
 
@@ -42,7 +42,7 @@ class Pool(Module):
             ]
 
         self.spatial = spatial
-        self.kernel_size = kernel_size
+        self.window_size = window_size
         self.stride = stride
         self.padding = padding
 
@@ -69,7 +69,7 @@ class Pool(Module):
             operand=x,
             init_value=self.initial,
             computation=self.operator,
-            window_dimensions=(1, *self.kernel_size, 1),
+            window_dimensions=(1, *self.window_size, 1),
             window_strides=(1, *self.stride, 1),
             padding=((0, 0), *self.padding, (0, 0)),
         )
@@ -94,11 +94,11 @@ class AvgPool(Pool):
 
     @wraps(Pool.__call__)
     def __call__(self, x: Array) -> Array:
-        return super().__call__(x) / math.prod(self.kernel_size)
+        return super().__call__(x) / math.prod(self.window_size)
 
-    @staticmethod
-    def operator(x: Array, y: Array) -> Array:
-        return jax.lax.add(x, y)
+    @property
+    def operator(self) -> Callable[[Array, Array], Array]:
+        return jax.lax.add
 
     @property
     def initial(self) -> float:
@@ -119,9 +119,9 @@ class MaxPool(Pool):
     def __call__(self, x: Array) -> Array:
         return super().__call__(x)
 
-    @staticmethod
-    def operator(x: Array, y: Array) -> Array:
-        return jax.lax.max(x, y)
+    @property
+    def operator(self) -> Callable[[Array, Array], Array]:
+        return jax.lax.max
 
     @property
     def initial(self) -> float:
