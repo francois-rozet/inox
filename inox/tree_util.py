@@ -12,6 +12,7 @@ __all__ = [
 
 import jax
 import jax._src.tree_util as jtu
+import numpy
 
 from textwrap import indent
 from typing import *
@@ -246,8 +247,8 @@ def tree_repr(
     x: PyTree,
     /,
     linewidth: int = 88,
-    shapeonly: bool = True,
     threshold: int = 6,
+    typeonly: bool = True,
     **kwargs,
 ) -> str:
     r"""Creates a pretty representation of a tree.
@@ -256,9 +257,9 @@ def tree_repr(
         x: The tree to represent.
         linewidth: The maximum line width before elements of tuples, lists and dicts
             are represented on separate lines.
-        shapeonly: Whether to represent the shape of arrays instead of their elements.
         threshold: The maximum number of elements before tuples, lists and dicts are
             summarized.
+        typeonly: Whether to represent the type of arrays instead of their elements.
 
     Returns:
         The representation string.
@@ -271,14 +272,14 @@ def tree_repr(
           'two',
           (True, False),
           [0, 1, 2, ..., 53, 54, 55],
-          {7: Array(shape=(8,), dtype=int32), None: '10'}
+          {7: int32[8], None: '10'}
         ]
     """
 
     kwargs.update(
         linewidth=linewidth,
-        shapeonly=shapeonly,
         threshold=threshold,
+        typeonly=typeonly,
     )
 
     if hasattr(x, 'tree_repr'):
@@ -295,8 +296,11 @@ def tree_repr(
             f'{tree_repr(key)}: {tree_repr(value)}'
             for key, value in x.items()
         ]
-    elif isinstance(x, jax.Array) and shapeonly:
-        return f'Array(shape={x.shape}, dtype={x.dtype})'
+    elif isinstance(x, numpy.ndarray) or isinstance(x, jax.Array):
+        if typeonly:
+            return f'{x.dtype}{list(x.shape)}'
+        else:
+            return repr(x)
     else:
         return repr(x).strip(' \n')
 
