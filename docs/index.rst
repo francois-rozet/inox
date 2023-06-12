@@ -76,6 +76,7 @@ and are fully compatible with native JAX transformations.
     :maxdepth: 2
 
     api.rst
+    tutorials.rst
 
 .. toctree::
     :caption: Development
