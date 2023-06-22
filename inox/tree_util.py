@@ -12,7 +12,7 @@ __all__ = [
 
 import jax
 import jax._src.tree_util as jtu
-import numpy
+import numpy as np
 
 from textwrap import indent
 from typing import *
@@ -296,7 +296,7 @@ def tree_repr(
             f'{tree_repr(key)}: {tree_repr(value)}'
             for key, value in x.items()
         ]
-    elif isinstance(x, numpy.ndarray) or isinstance(x, jax.Array):
+    elif isinstance(x, np.ndarray) or isinstance(x, jax.Array):
         if typeonly:
             return f'{x.dtype}{list(x.shape)}'
         else:

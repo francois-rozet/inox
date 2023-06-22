@@ -9,6 +9,7 @@ __all__ = [
 
 import jax
 import jax.tree_util as jtu
+import numpy as np
 
 from jax import Array
 from typing import *
@@ -17,7 +18,7 @@ from ..tree_util import *
 
 
 def is_array(x: Any) -> bool:
-    return isinstance(x, Array)
+    return isinstance(x, np.ndarray) or isinstance(x, Array)
 
 
 def is_module(x: Any) -> bool:
