@@ -9,3 +9,4 @@ from .module import *
 from .normalization import *
 from .pooling import *
 from .recurrent import *
+from .ssm import *
