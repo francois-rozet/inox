@@ -227,7 +227,7 @@ class MGUCell(Module):
     r"""Creates a minimal gated unit (MGU) cell.
 
     References:
-        | Minimal gated unit for recurrent neural networks (Zhou et al., 2016)
+        | Minimal Gated Unit for Recurrent Neural Networks (Zhou et al., 2016)
         | https://arxiv.org/pdf/1603.09420
 
     Arguments:
