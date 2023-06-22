@@ -1,6 +1,7 @@
 r"""Recurrent layers"""
 
 __all__ = [
+    'Cell',
     'Recurrent',
     'GRUCell',
     'LSTMCell',
@@ -17,28 +18,54 @@ from .module import *
 from .linear import Linear
 
 
+class Cell(Module):
+    r"""Abstract cell class.
+
+    A cell defines a recurrence function :math:`f` of the form
+
+    .. math:: (h_i, y_i) = f(h_{i-1}, x_i)
+
+    and an initial hidden state :math:`h_0`.
+
+    Warning:
+        The recurrence function :math:`f` should be functionally pure.
+    """
+
+    def __call__(self, h: Any, x: Any) -> Tuple[Any, Any]:
+        r"""
+        Arguments:
+            h: The previous hidden state :math:`h_{i-1}`.
+            x: The input :math:`x_i`.
+
+        Returns:
+            The hidden state and output :math:`(h_i, y_i)`.
+        """
+
+        raise NotImplementedError()
+
+    def init(self) -> Any:
+        r"""
+        Returns:
+            The initial hidden state :math:`h_0`.
+        """
+
+        raise NotImplementedError()
+
+
 class Recurrent(Module):
     r"""Creates a recurrent layer.
 
-    .. math:: (h_i, y_i) \gets f(h_{i-1}, x_i)
-
-    Warning:
-        The recurrence function :math:`f` must be functionally pure.
-
     Arguments:
-        f: The recurrence function :math:`f`.
-        h: The initial hidden state :math:`h_0`.
+        cell: A recurrent cell.
         reverse: Whether to apply the recurrence in reverse or not.
     """
 
     def __init__(
         self,
-        f: Callable[[Any, Any], Tuple[Any, Any]],
-        h: Any,
+        cell: Cell,
         reverse: bool = False,
     ):
-        self.f = f
-        self.h = h
+        self.cell = cell
         self.reverse = reverse
 
     def __call__(self, xs: Any) -> Any:
@@ -53,8 +80,8 @@ class Recurrent(Module):
         """
 
         _, ys = jax.lax.scan(
-            f=self.f,
-            init=self.h,
+            f=self.cell,
+            init=self.cell.init(),
             xs=xs,
             reverse=self.reverse,
         )
@@ -62,7 +89,7 @@ class Recurrent(Module):
         return ys
 
 
-class GRUCell(Module):
+class GRUCell(Cell):
     r"""Creates a gated recurrent unit (GRU) cell.
 
     References:
@@ -88,10 +115,13 @@ class GRUCell(Module):
         self.lin_h = Linear(keys[0], hid_features, 3 * hid_features, bias)
         self.lin_x = Linear(keys[1], in_features, 3 * hid_features, bias)
 
+        self.in_features = in_features
+        self.hid_features = hid_features
+
     def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
         r"""
         Arguments:
-            h: The hidden state :math:`h_{i-1}`, with shape :math:`(*, H)`.
+            h: The previous hidden state :math:`h_{i-1}`, with shape :math:`(*, H)`.
             x: The input vector :math:`x_i`, with shape :math:`(*, C)`.
 
         Returns:
@@ -109,8 +139,16 @@ class GRUCell(Module):
 
         return h, h
 
+    def init(self) -> Array:
+        r"""
+        Returns:
+            The initial hidden state :math:`h_0 = 0`, with shape :math:`(H)`.
+        """
 
-class LSTMCell(Module):
+        return jnp.zeros(self.hid_features)
+
+
+class LSTMCell(Cell):
     r"""Creates a long short-term memory (LSTM) cell.
 
     References:
@@ -136,6 +174,9 @@ class LSTMCell(Module):
         self.lin_h = Linear(keys[0], hid_features, 4 * hid_features, bias)
         self.lin_x = Linear(keys[1], in_features, 4 * hid_features, bias)
 
+        self.in_features = in_features
+        self.hid_features = hid_features
+
     def __call__(
         self,
         h: Tuple[Array, Array],
@@ -143,7 +184,7 @@ class LSTMCell(Module):
     ) -> Tuple[Tuple[Array, Array], Array]:
         r"""
         Arguments:
-            h: The hidden and cell states :math:`(h_{i-1}, c_{i-1})`,
+            h: The previous hidden and cell states :math:`(h_{i-1}, c_{i-1})`,
                 each with shape :math:`(*, H)`.
             x: The input vector :math:`x_i`, with shape :math:`(*, C)`.
 
@@ -163,3 +204,12 @@ class LSTMCell(Module):
         h = o * jax.nn.tanh(c)
 
         return (h, c), h
+
+    def init(self) -> Tuple[Array, Array]:
+        r"""
+        Returns:
+            The initial hidden and cell states :math:`h_0 = c_0 = 0`,
+            each with shape :math:`(H)`.
+        """
+
+        return jnp.zeros(self.hid_features), jnp.zeros(self.hid_features)
