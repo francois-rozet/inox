@@ -3,7 +3,7 @@ r"""Recurrent layers"""
 __all__ = [
     'Cell',
     'Recurrent',
-    'BRCCell',
+    'BRCell',
     'MGUCell',
     'GRUCell',
     'LSTMCell',
@@ -150,8 +150,8 @@ class GRUCell(Cell):
         return jnp.zeros(self.hid_features)
 
 
-class BRCCell(Module):
-    r"""Creates a bistable recurrent cell (BRC) cell.
+class BRCell(Module):
+    r"""Creates a bistable recurrent cell (BRC).
 
     References:
         | A bio-inspired bistable recurrent cell allows for long-lasting memory (Vecoven et al., 2021)
