@@ -1,8 +1,9 @@
 r"""State space model (SSM) layers"""
 
 __all__ = [
+    'SISO',
+    'SISOLayer',
     'S4',
-    'S4Cell',
 ]
 
 import jax
@@ -15,15 +16,101 @@ from jax.random import KeyArray
 from typing import *
 
 from .module import *
-from .recurrent import Cell
 
 
-class S4(Module):
-    r"""TODO
+class SISO(Module):
+    r"""Abstract single-input single-output (SISO) state space model class.
+
+    A SISO state space model defines a system of equations of the form
 
     .. math::
-        h'(t) & = A h(t) + B x(t) \\
-        y(t) & = C h(t)
+        x'(t) & = A x(t) + B u(t) \\
+        y(t) & = C x(t)
+
+    where :math:`u(t), y(t) \in \mathbb{C}` are input and output signals and :math:`x(t)
+    \in \mathbb{C}^{H}` is a latent/hidden state. In practice, the input and output
+    signals are sampled every :math:`\Delta` time units, leading to sequences
+    :math:`(x_1, x_2, \dots)` and :math:`(y_1, y_2, \dots)` whose dynamics are governed
+    by the discrete-time form of the system
+
+    .. math::
+        x_i & = \bar{A} x_{i-1} + \bar{B} u_i \\
+        y_i & = \bar{C} x_i
+
+    where :math:`\bar{A} = \exp(\Delta A)`, :math:`\bar{B} = A^{-1} (\bar{A} - I) B` and
+    :math:`\bar{C} = C`. Assuming :math:`x_0 = 0`, the dynamics can also be represented
+    as a discrete-time convolution
+
+    .. math:: y_{1:L} = \bar{k}_{1:L} * u_{1:L}
+
+    where :math:`\bar{k}_i = \bar{C} \bar{A}^{i-1} \bar{B} \in \mathbb{C}`.
+
+    Wikipedia:
+        https://wikipedia.org/wiki/State-space_representation
+    """
+
+    def discrete(self) -> Tuple[Array, Array, Array]:
+        r"""
+        Returns:
+            The matrices :math:`\bar{A}`, :math:`\bar{B}` and :math:`\bar{C}`,
+            respectively with shape :math:`(H, H)`, :math:`(H)` and :math:`(H)`.
+        """
+
+        raise NotImplementedError()
+
+    def kernel(self, length: int) -> Array:
+        r"""
+        Arguments:
+            length: The kernel length :math:`L`.
+
+        Returns:
+            The kernel :math:`\bar{k}_{1:L}`, with shape :math:`(L)`.
+        """
+
+        raise NotImplementedError()
+
+
+class SISOLayer(Module):
+    r"""Creates a SISO layer.
+
+    Arguments:
+        siso: A stack of :math:`C` SISO state space models.
+        reverse: Whether to apply the system in reverse or not.
+
+    Example:
+        >>> keys = jax.random.split(key, in_features)
+        >>> siso = jax.vmap(S4, in_axes=(0, None))(keys, hid_features)
+        >>> layer = SISOLayer(siso)
+        >>> y = layer(u)
+    """
+
+    def __init__(self, siso: SISO, reverse: bool = False):
+        self.siso = siso
+        self.reverse = reverse
+
+    def __call__(self, u: Array) -> Array:
+        r"""
+        Arguments:
+            u: A sequence of input vectors :math:`u_{1:L}`, with shape :math:`(*, L, C)`.
+
+        Returns:
+            The sequence of output vectors :math:`y_{1:L}`, with shape :math:`(*, L, C)`.
+        """
+
+        L = u.shape[-2]
+        k = jax.vmap(lambda siso: siso.kernel(L))(self.siso)
+
+        convolve = lambda k, u: jax.scipy.signal.fftconvolve(k.T, u, axes=0)
+        convolve = jnp.vectorize(convolve, signature='(C,L),(L,C)->(2L,C)')
+
+        if self.reverse:
+            return convolve(k[:, ::-1], u)[..., -L:, :]
+        else:
+            return convolve(k, u)[..., :L, :]
+
+
+class S4(SISO):
+    r"""Creates an S4 state space model.
 
     References:
         | Efficiently Modeling Long Sequences with Structured State Spaces (Gu et al., 2021)
@@ -54,32 +141,18 @@ class S4(Module):
             maxval=math.log(1e-1),
         )
 
-    def __call__(self, xs: Array) -> Array:
-        r"""TODO
-
-        .. math:: y_i = \sum_{j = 1}^{i} \bar{C} \bar{A}{i-j} \bar{B} x_j
-
-        Arguments:
-            xs: The sequence of inputs :math:`x_i`, with shape :math:`(L)`.
-
-        Returns:
-            The sequence of outputs :math:`y_i`, with shape :math:`(L)`.
-        """
-
-        L = xs.shape[0]
-        k = self.kernel(L)
-
-        return jax.scipy.signal.fftconvolve(xs, k)[:L]
-
     @staticmethod
     def DPLR_HiPPO(n: int) -> Tuple[Array, Array]:
         r"""Returns the diagonal plus low-rank (DPLR) form of the HiPPO matrix.
 
         .. math:: A = \Lambda - PP^*
+
+        Arguments:
+            n: The size :math:`n` of the HiPPO matrix.
         """
 
         P = np.sqrt(np.arange(n) + 1 / 2)
-        S = np.outer(P, P.conj())
+        S = jnp.outer(P, P.conj())
         S = np.tril(S) - np.triu(S)
 
         # Diagonal A
@@ -93,8 +166,6 @@ class S4(Module):
         return jnp.asarray(A), jnp.asarray(P)
 
     def discrete(self) -> Tuple[Array, Array, Array]:
-        r"""Returns :math:`\bar{A}`, :math:`\bar{B}` and :math:`\bar{C}`."""
-
         A = -jnp.exp(self.A_re) + 1j * self.A_im
         P, B, C = self.P, self.B, self.C
         dt = jnp.exp(self.log_dt)
@@ -109,26 +180,20 @@ class S4(Module):
 
         return Ab, Bb, C
 
-    def kernel(self, L: int) -> Array:
-        r"""Returns the kernel :math:`\bar{k}` of length :math:`L`.
-
-        .. math:: \bar{k} = (\bar{C} \bar{B}, \bar{C} \bar{A} \bar{B},
-            \dots, \bar{C} \bar{A}^{L-1} \bar{B})
-        """
-
+    def kernel(self, length: int) -> Array:
         A = -jnp.exp(self.A_re) + 1j * self.A_im
         P, B, C = self.P, self.B, self.C
         dt = jnp.exp(self.log_dt)
 
         # \tilde{C}
         Ab, _, _ = self.discrete()
-        Ct = C - jnp.linalg.matrix_power(Ab, L).T @ C
+        Ct = C - jnp.linalg.matrix_power(Ab, length).T @ C
 
         # Roots of unity
-        z = jnp.exp(-2j * math.pi / L * jnp.arange(L))
+        z = jnp.exp(-2j * math.pi / length * jnp.arange(length))
 
         # Cauchy
-        u = 2 / dt * (1 - z) / (1 + z)
+        w = 2 / dt * (1 - z) / (1 + z)
         v = jnp.stack((
             Ct * B,
             Ct * P,
@@ -136,53 +201,10 @@ class S4(Module):
             P.conj() * P,
         ))
 
-        k00, k01, k10, k11 = jnp.sum(v[:, None] / (u[:, None] - A), axis=-1)
+        k00, k01, k10, k11 = jnp.sum(v[:, None] / (w[:, None] - A), axis=-1)
 
         # Kernel
         k = 2 / (1 + z) * (k00 - k01 / (1 + k11) * k10)
         k = jnp.fft.ifft(k).real
 
         return k
-
-    def cell(self) -> Cell:
-        r"""Returns an equivalent recurrent cell."""
-
-        return S4Cell(*self.discrete())
-
-
-class S4Cell(Cell):
-    r"""TODO
-
-    .. math::
-        h_i & = A h_{i-1} + B x_i \\
-        y_i & = C h_i
-
-    Arguments:
-        A: with shape :math:`(H, H)`.
-        B: with shape :math:`(H)`.
-        C: with shape :math:`(H)`.
-    """
-
-    def __init__(self, A: Array, B: Array, C: Array):
-        self.A = A
-        self.B = B
-        self.C = C
-
-    def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
-        r"""
-        Arguments:
-            h: The previous hidden state :math:`h_{i-1}`, with shape :math:`(H)`.
-            x: The input :math:`x_i`, with shape :math:`()`.
-
-        Returns:
-            The hidden state and output :math:`(h_i, y_i)`, with shape
-            :math:`(H)` and :math:`()`.
-        """
-
-        h = self.A @ h + self.B * x
-        y = jnp.dot(self.C, h)
-
-        return h, y.real
-
-    def init(self) -> Array:
-        return jnp.zeros_like(self.B)

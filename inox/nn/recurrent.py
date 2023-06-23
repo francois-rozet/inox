@@ -30,7 +30,7 @@ class Cell(Module):
     and an initial hidden state :math:`h_0`.
 
     Warning:
-        The recurrence function :math:`f` should be functionally pure.
+        The recurrence function :math:`f` should have no side effects.
     """
 
     def __call__(self, h: Any, x: Any) -> Tuple[Any, Any]:
