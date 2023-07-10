@@ -43,7 +43,7 @@ class Namespace(metaclass=PyTreeMeta):
         kwargs: A name-value mapping.
 
     Example:
-        >>> ns := Namespace(a=1, b='2'); ns
+        >>> ns = Namespace(a=1, b='2'); ns
         Namespace(
           a = 1,
           b = '2'
