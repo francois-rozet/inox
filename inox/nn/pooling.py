@@ -20,28 +20,18 @@ class Pool(Module):
 
     def __init__(
         self,
-        spatial: int,
-        window_size: Union[int, Sequence[int]],
+        window_size: Sequence[int],
         stride: Union[int, Sequence[int]] = None,
-        padding: Union[int, Sequence[int], Sequence[Tuple[int, int]]] = 0,
+        padding: Union[int, Sequence[Tuple[int, int]]] = 0,
     ):
-        if isinstance(window_size, int):
-            window_size = [window_size] * spatial
-
         if stride is None:
             stride = window_size
         elif isinstance(stride, int):
-            stride = [stride] * spatial
+            stride = [stride] * len(window_size)
 
         if isinstance(padding, int):
-            padding = [(padding, padding)] * spatial
-        else:
-            padding = [
-                (pad, pad) if isinstance(pad, int) else pad
-                for pad in padding
-            ]
+            padding = [(padding, padding)] * len(window_size)
 
-        self.spatial = spatial
         self.window_size = window_size
         self.stride = stride
         self.padding = padding
@@ -50,10 +40,10 @@ class Pool(Module):
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:
-            x: The input tensor :math:`x`, with shape :math:`(*, H_1, \dots, H_S, C)`.
+            x: The input tensor :math:`x`, with shape :math:`(*, H_1, \dots, H_n, C)`.
 
         Returns:
-            The output tensor :math:`y`, with shape :math:`(*, H_1', \dots, H_S', C)`,
+            The output tensor :math:`y`, with shape :math:`(*, H_1', \dots, H_n', C)`,
             such that
 
             .. math:: H_i' = \left\lfloor \frac{H_i - k_i + p_i}{s_i} + 1 \right\rfloor
@@ -80,14 +70,13 @@ class Pool(Module):
 
     @property
     def ndim(self) -> int:
-        return self.spatial + 1
+        return len(self.window_size) + 1
 
 
 class AvgPool(Pool):
     r"""Creates an average spatial pooling layer.
 
     Arguments:
-        spatial: The number of spatial axes :math:`S`.
         window_size: The size of the pooling window in each spatial axis.
         stride: The stride coefficient in each spatial axis.
         padding: The padding applied to each end of each spatial axis.
@@ -110,7 +99,6 @@ class MaxPool(Pool):
     r"""Creates a maximum spatial pooling layer.
 
     Arguments:
-        spatial: The number of spatial axes :math:`S`.
         window_size: The size of the pooling window in each spatial axis.
         stride: The stride coefficient in each spatial axis.
         padding: The padding applied to each end of each spatial axis.

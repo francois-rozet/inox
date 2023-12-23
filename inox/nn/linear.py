@@ -24,7 +24,7 @@ class Linear(Module):
     Arguments:
         key: A PRNG key for initialization.
         in_features: The number of input features :math:`C`.
-        out_features: The number of output features  :math:`C'`.
+        out_features: The number of output features :math:`C'`.
         bias: Whether the layer learns an additive bias :math:`b` or not.
     """
 
@@ -82,11 +82,10 @@ class Conv(Module):
 
     Arguments:
         key: A PRNG key for initialization.
-        spatial: The number of spatial axes :math:`S`.
         in_channels: The number of input channels :math:`C`.
-        out_channels: The number of output channels  :math:`C'`.
-        bias: Whether the layer learns an additive bias :math:`b` or not.
+        out_channels: The number of output channels :math:`C'`.
         kernel_size: The size of the kernel :math:`W` in each spatial axis.
+        bias: Whether the layer learns an additive bias :math:`b` or not.
         stride: The stride coefficient in each spatial axis.
         dilation: The dilation coefficient in each spatial axis.
         padding: The padding applied to each end of each spatial axis.
@@ -97,34 +96,25 @@ class Conv(Module):
     def __init__(
         self,
         key: KeyArray,
-        spatial: int,
         in_channels: int,
         out_channels: int,
+        kernel_size: Sequence[int],
         bias: bool = True,
-        kernel_size: Union[int, Sequence[int]] = 3,
         stride: Union[int, Sequence[int]] = 1,
         dilation: Union[int, Sequence[int]] = 1,
-        padding: Union[int, Sequence[int], Sequence[Tuple[int, int]]] = 0,
+        padding: Union[int, Sequence[Tuple[int, int]]] = 0,
         groups: int = 1,
     ):
         in_channels = in_channels // groups
 
-        if isinstance(kernel_size, int):
-            kernel_size = [kernel_size] * spatial
-
         if isinstance(stride, int):
-            stride = [stride] * spatial
+            stride = [stride] * len(kernel_size)
 
         if isinstance(dilation, int):
-            dilation = [dilation] * spatial
+            dilation = [dilation] * len(kernel_size)
 
         if isinstance(padding, int):
-            padding = [(padding, padding)] * spatial
-        else:
-            padding = tuple(
-                (pad, pad) if isinstance(pad, int) else pad
-                for pad in padding
-            )
+            padding = [(padding, padding)] * len(kernel_size)
 
         keys = jax.random.split(key, 2)
         lim = 1 / (math.prod(kernel_size) * in_channels) ** 0.5
@@ -146,7 +136,6 @@ class Conv(Module):
         else:
             self.bias = None
 
-        self.spatial = spatial
         self.kernel_size = kernel_size
         self.stride = stride
         self.dilation = dilation
@@ -157,10 +146,10 @@ class Conv(Module):
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:
-            x: The input tensor :math:`x`, with shape :math:`(*, H_1, \dots, H_S, C)`.
+            x: The input tensor :math:`x`, with shape :math:`(*, H_1, \dots, H_n, C)`.
 
         Returns:
-            The output tensor :math:`y`, with shape :math:`(*, H_1', \dots, H_S', C')`,
+            The output tensor :math:`y`, with shape :math:`(*, H_1', \dots, H_n', C')`,
             such that
 
             .. math:: H_i' =
@@ -192,7 +181,7 @@ class Conv(Module):
 
     @property
     def ndim(self) -> int:
-        return self.spatial + 1
+        return len(self.kernel_size) + 1
 
     @property
     def dimensions(self) -> jax.lax.ConvDimensionNumbers:
@@ -216,11 +205,10 @@ class ConvTransposed(Conv):
 
     Arguments:
         key: A PRNG key for initialization.
-        spatial: The number of spatial axes :math:`S`.
         in_channels: The number of input channels :math:`C`.
         out_channels: The number of output channels  :math:`C'`.
-        bias: Whether the layer learns an additive bias :math:`b` or not.
         kernel_size: The size of the kernel :math:`W` in each spatial axis.
+        bias: Whether the layer learns an additive bias :math:`b` or not.
         stride: The stride coefficient in each spatial axis.
         dilation: The dilation coefficient in each spatial axis.
         padding: The padding applied to each end of each spatial axis.
@@ -232,10 +220,10 @@ class ConvTransposed(Conv):
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:
-            x: The input tensor :math:`x`, with shape :math:`(*, H_1, \dots, H_S, C)`.
+            x: The input tensor :math:`x`, with shape :math:`(*, H_1, \dots, H_n, C)`.
 
         Returns:
-            The output tensor :math:`y`, with shape :math:`(*, H_1', \dots, H_S', C')`,
+            The output tensor :math:`y`, with shape :math:`(*, H_1', \dots, H_n', C')`,
             such that
 
             .. math:: H_i' = (H_i - 1) \times s_i + d_i \times (k_i - 1) - p_i + 1
@@ -252,7 +240,7 @@ class ConvTransposed(Conv):
             lhs=x,
             rhs=self.kernel,
             dimension_numbers=self.dimensions,
-            window_strides=[1] * self.spatial,
+            window_strides=[1] * (self.ndim - 1),
             padding=self.transposed_padding,
             lhs_dilation=self.stride,
             rhs_dilation=self.dilation,
