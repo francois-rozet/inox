@@ -7,6 +7,7 @@ API
    :toctree: api
    :recursive:
 
+   inox.debug
    inox.nn
    inox.random
    inox.tree_util

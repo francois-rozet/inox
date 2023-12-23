@@ -25,6 +25,7 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.linkcode',
     'sphinx.ext.napoleon',
+    'myst_nb',
 ]
 
 autodoc_default_options = {
@@ -41,7 +42,6 @@ autosummary_ignore_module_all = False
 
 intersphinx_mapping = {
     'jax': ('https://jax.readthedocs.io/en/latest', None),
-    'numpy': ('https://numpy.org/doc/stable', None),
     'python': ('https://docs.python.org/3', None),
 }
 
@@ -57,6 +57,9 @@ def linkcode_resolve(domain: str, info: dict) -> str:
     for name in fullname.split('.'):
         objct = getattr(objct, name)
 
+    if hasattr(objct, '__wrapped__'):
+        objct = objct.__wrapped__
+
     try:
         file = inspect.getsourcefile(objct)
         file = file[file.rindex(package) :]
@@ -71,11 +74,14 @@ def linkcode_resolve(domain: str, info: dict) -> str:
 
 napoleon_custom_sections = ['Wikipedia']
 
+nb_execution_mode = 'off'
+myst_enable_extensions = ['dollarmath']
+
 ## Settings
 
 add_function_parentheses = False
 default_role = 'literal'
-exclude_patterns = ['templates']
+exclude_patterns = ['jupyter_execute', 'templates']
 html_copy_source = False
 html_css_files = [
     'custom.css',

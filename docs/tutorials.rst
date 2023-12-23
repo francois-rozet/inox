@@ -2,5 +2,7 @@ Tutorials
 =========
 
 .. toctree::
+    :maxdepth: 1
+    :numbered:
 
-    CNN on MNIST <https://github.com/francois-rozet/inox/blob/master/docs/tutorials/mnist.ipynb>
+    tutorials/mnist
