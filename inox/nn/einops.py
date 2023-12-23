@@ -8,6 +8,7 @@ References:
 __all__ = [
     'Rearrange',
     'Reduce',
+    'Repeat',
 ]
 
 import einops
@@ -16,7 +17,7 @@ import jax
 from jax import Array
 from typing import *
 
-from .module import *
+from .module import Module
 
 
 class Rearrange(Module):
@@ -26,7 +27,7 @@ class Rearrange(Module):
 
     Arguments:
         pattern: The axis rearrangement pattern. For example, the pattern
-            :py:`'A B C -> C (A B)'` moves and flattens the two first dimensions.
+            :py:`'A B C -> C (A B)'` moves and flattens the two first axes.
         lengths: The lengths of the axes.
     """
 
@@ -34,6 +35,7 @@ class Rearrange(Module):
         self.pattern = pattern
         self.lengths = lengths
 
+    @jax.jit
     def __call__(self, x: Array) -> Array:
         return einops.rearrange(x, self.pattern, **self.lengths)
 
@@ -45,7 +47,7 @@ class Reduce(Module):
 
     Arguments:
         pattern: The axis rearrangement pattern. For example, the pattern
-            :py:`'A B C -> C (A B)'` moves and flattens the two first dimensions.
+            :py:`'A B C -> A C'` reduces the second axis.
         reduction: The type of reduction (:py:`'sum'`, :py:`'mean'`, :py:`'max'`, ...).
         lengths: The lengths of the axes.
     """
@@ -55,5 +57,26 @@ class Reduce(Module):
         self.reduction = reduction
         self.lengths = lengths
 
+    @jax.jit
     def __call__(self, x: Array) -> Array:
         return einops.reduce(x, self.pattern, self.reduction, **self.lengths)
+
+
+class Repeat(Module):
+    r"""Creates an axis repetition layer.
+
+    This module is a thin wrapper around :func:`einops.repeat`.
+
+    Arguments:
+        pattern: The axis rearrangement pattern. For example, the pattern
+            :py:`'A B -> A C B'` inserts a new axis.
+        lengths: The lengths of the axes.
+    """
+
+    def __init__(self, pattern: str, **lengths: int):
+        self.pattern = pattern
+        self.lengths = lengths
+
+    @jax.jit
+    def __call__(self, x: Array) -> Array:
+        return einops.repeat(x, self.pattern, **self.lengths)

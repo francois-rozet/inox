@@ -3,10 +3,7 @@ r"""Extended utilities for tree-like data structures"""
 __all__ = [
     'Namespace',
     'Static',
-    'tree_copy',
-    'tree_eq',
-    'tree_partition',
-    'tree_merge',
+    'Auto',
     'tree_repr',
 ]
 
@@ -14,12 +11,26 @@ import jax
 import jax._src.tree_util as jtu
 import numpy as np
 
+from jax import Array
 from textwrap import indent
 from typing import *
+from warnings import warn
 
 
 PyTree = TypeVar('PyTree', bound=Any)
 PyTreeDef = TypeVar('PyTreeDef')
+
+
+def is_array(x: Any) -> bool:
+    return isinstance(x, np.ndarray) or isinstance(x, Array)
+
+
+def is_static(x: Any) -> bool:
+    return isinstance(x, Static)
+
+
+def is_auto(x: Any) -> bool:
+    return isinstance(x, Auto)
 
 
 class PyTreeMeta(type):
@@ -48,27 +59,26 @@ class Namespace(metaclass=PyTreeMeta):
           a = 1,
           b = '2'
         )
-        >>> ns.c = [3]; ns
+        >>> ns.c = [3, False]; ns
         Namespace(
           a = 1,
           b = '2',
-          c = [3]
+          c = [3, False]
         )
         >>> jax.tree_util.tree_leaves(ns)
-        [1, '2', 3]
+        [1, '2', 3, False]
     """
 
     def __init__(self, **kwargs):
-        for name, value in kwargs.items():
-            setattr(self, name, value)
+        self.__dict__.update(**kwargs)
 
     def __repr__(self) -> str:
         return tree_repr(self)
 
     def tree_repr(self, **kwargs) -> str:
         lines = (
-            f'{name} = {tree_repr(value, **kwargs)}'
-            for name, value in sorted(self.__dict__.items())
+            f'{name} = {tree_repr(getattr(self, name), **kwargs)}'
+            for name in sorted(self.__dict__.keys())
         )
 
         lines = ',\n'.join(lines)
@@ -114,7 +124,12 @@ class Static(metaclass=PyTreeMeta):
         PyTreeDef(CustomNode(Static[(0, 'one', None)], []))
     """
 
+    __slots__ = ('x')
+
     def __init__(self, x: Hashable):
+        if not isinstance(x, Hashable):
+            warn(f"'{type(x).__name__}' object is not hashable.")
+
         self.x = x
 
     def __call__(self) -> Hashable:
@@ -126,7 +141,7 @@ class Static(metaclass=PyTreeMeta):
         return self.x
 
     def __repr__(self) -> str:
-        return repr(self.x)
+        return f'{self.__class__.__name__}({repr(self.x)})'
 
     def tree_flatten(self):
         return (), self.x
@@ -136,118 +151,64 @@ class Static(metaclass=PyTreeMeta):
         return cls(x)
 
 
-def tree_copy(
-    tree: PyTree,
-    is_leaf: Callable[[Any], bool] = None,
-) -> PyTree:
-    r"""Copies a tree down to its leaves.
+class Auto(Namespace):
+    r"""Subclass of :class:`Namespace` that automatically detects non-array leaves
+    and considers them as static (part of the tree structure).
+
+    Note:
+        :py:`object()` leaves are never considered static.
 
     Arguments:
-        tree: The tree to copy.
-        is_leaf: A predicate for what to consider as a leaf.
-
-    Returns:
-        A copy of :py:`tree`.
-    """
-
-    leaves, treedef = jtu.tree_flatten(tree, is_leaf)
-    new = jtu.tree_unflatten(treedef, leaves)
-
-    return new
-
-
-def tree_eq(a: PyTree, b: PyTree, verbose: bool = False) -> bool:
-    r"""Compares the leaves of two trees with the same structure.
-
-    The primary usage of :func:`tree_eq` is to detect leaves that should mutate during a
-    procedure, but do not. This issue typically appears when the mutation is performed
-    within the scope of a pure function (:func:`jax.jit`, :func:`jax.vmap`,
-    :func:`jax.lax.scan`, ...).
-
-    Arguments:
-        a: The first tree.
-        b: The second tree.
-        verbose: If :py:`True`, prints a leaf-level equality report.
-
-    Returns:
-        :py:`True` if all leaves are identical (:py:`x is y`), :py:`False` otherwise.
-    """
-
-    eqs = jtu.tree_map(lambda x, y: x is y, a, b)
-
-    if verbose:
-        leaves, _ = jtu.tree_flatten_with_path(eqs)
-
-        for path, eq in leaves:
-            print(str(eq).ljust(5), ''.join(map(str, path)))
-
-    return all(jtu.tree_leaves(eqs))
-
-
-def tree_partition(
-    f: Callable[[Any], bool],
-    tree: PyTree,
-    is_leaf: Callable[[Any], bool] = None,
-) -> Tuple[List[Any], List[Any], PyTreeDef]:
-    r"""Flattens a tree and splits the leaves into two partitions.
-
-    Arguments:
-        f: A predicate choosing the partition of each leaf.
-        tree: The tree to flatten.
-        is_leaf: A predicate for what to consider as a leaf.
-
-    Returns:
-        The two partitions and the structure definition of the tree.
+        kwargs: A name-value mapping.
 
     Example:
-        >>> f = lambda x: isinstance(x, str)
-        >>> tree = [1, 'two', (True, 'False')]
-        >>> left, right, treedef = tree_partition(f, tree)
-        >>> left
-        [None, 'two', None, 'False']
-        >>> right
-        [1, None, True, None]
+        >>> auto = Auto(a=1, b=jnp.array(2.0)); auto
+        Auto(
+          a = 1,
+          b = float32[]
+        )
+        >>> auto.c = ['3', jnp.arange(4)]; auto
+        Auto(
+          a = 1,
+          b = float32[],
+          c = ['3', int32[4]]
+        )
+        >>> jax.tree_util.tree_leaves(auto)  # only arrays
+        [Array(2., dtype=float32, weak_type=True), Array([0, 1, 2, 3], dtype=int32)]
     """
 
-    leaves, treedef = jtu.tree_flatten(tree, is_leaf)
-    left = [x if f(x) else None for x in leaves]
-    right = [None if f(x) else x for x in leaves]
+    def tree_flatten(self):
+        __dict__ = jtu.tree_map(
+            f=lambda x: x if type(x) is object or is_array(x) or is_auto(x) else Static(x),
+            tree=self.__dict__,
+            is_leaf=is_auto,
+        )
 
-    return left, right, treedef
+        if __dict__:
+            names, values = zip(*sorted(__dict__.items()))
+        else:
+            names, values = (), ()
 
+        return values, names
 
-def tree_merge(
-    treedef: PyTreeDef,
-    left: List[Any],
-    right: List[Any],
-) -> PyTree:
-    r"""Merges two partitions as a single tree.
+    @classmethod
+    def tree_unflatten(cls, names, values):
+        __dict__ = dict(zip(names, values))
 
-    Arguments:
-        treedef: The PyTree structure definition.
-        left: The left partition.
-        right: The right partition.
+        self = object.__new__(cls)
+        self.__dict__ = jtu.tree_map(
+            f=lambda x: x() if is_static(x) else x,
+            tree=__dict__,
+            is_leaf=lambda x: is_auto(x) or is_static(x),
+        )
 
-    Returns:
-        The resulting tree.
-
-    Example:
-        >>> left = [None if x is None else x.upper() for x in left]
-        >>> tree_merge(treedef, left, right)
-        [1, 'TWO', (True, 'FALSE')]
-    """
-
-    leaves = [x if y is None else y for x, y in zip(left, right)]
-    tree = jtu.tree_unflatten(treedef, leaves)
-
-    return tree
+        return self
 
 
 def tree_repr(
     x: PyTree,
     /,
     linewidth: int = 88,
-    threshold: int = 6,
     typeonly: bool = True,
     **kwargs,
 ) -> str:
@@ -257,28 +218,25 @@ def tree_repr(
         x: The tree to represent.
         linewidth: The maximum line width before elements of tuples, lists and dicts
             are represented on separate lines.
-        threshold: The maximum number of elements before tuples, lists and dicts are
-            summarized.
         typeonly: Whether to represent the type of arrays instead of their elements.
 
     Returns:
         The representation string.
 
     Example:
-        >>> tree = [1, 'two', (True, False), list(range(56)), {7: jnp.arange(8), None: '10'}]
+        >>> tree = [1, 'two', (True, False), list(range(5)), {'6': jnp.arange(7)}]
         >>> print(tree_repr(tree))
         [
           1,
           'two',
           (True, False),
-          [0, 1, 2, ..., 53, 54, 55],
-          {7: int32[8], None: '10'}
+          [0, 1, 2, 3, 4, 5],
+          {'6': int32[7]}
         ]
     """
 
     kwargs.update(
         linewidth=linewidth,
-        threshold=threshold,
         typeonly=typeonly,
     )
 
@@ -296,16 +254,13 @@ def tree_repr(
             f'{tree_repr(key)}: {tree_repr(value)}'
             for key, value in x.items()
         ]
-    elif isinstance(x, np.ndarray) or isinstance(x, jax.Array):
+    elif is_array(x):
         if typeonly:
             return f'{x.dtype}{list(x.shape)}'
         else:
             return repr(x)
     else:
         return repr(x).strip(' \n')
-
-    if len(lines) > threshold:
-        lines = lines[:threshold // 2] + ['...'] + lines[-threshold // 2:]
 
     if any('\n' in line for line in lines):
         lines = ',\n'.join(lines)

@@ -21,7 +21,7 @@ import jax
 from jax import Array
 from typing import *
 
-from .module import *
+from .module import Module
 
 
 class Activation(Module):

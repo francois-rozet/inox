@@ -11,7 +11,8 @@ import jax.numpy as jnp
 from jax import Array
 from typing import *
 
-from .module import *
+from .module import Module, Buffer
+from ..debug import same_trace
 
 
 class BatchNorm(Module):
@@ -20,9 +21,9 @@ class BatchNorm(Module):
     .. math:: y_i = \frac{x_i - \mathbb{E}[x_i]}{\sqrt{\mathbb{V}[x_i] + \epsilon}}
 
     The mean and variance are calculated over the batch and spatial axes. During
-    training, this layer keeps running estimates of the computed mean and variance,
-    which are then used for normalization during evaluation. The update rule for a
-    running average statistic :math:`\hat{s}` is
+    training, the layer keeps running estimates of the computed mean and variance, which
+    are then used for normalization during evaluation. The update rule for a running
+    average statistic :math:`\hat{s}` is
 
     .. math:: \hat{s} \gets \alpha \hat{s} + (1 - \alpha) s
 
@@ -38,6 +39,8 @@ class BatchNorm(Module):
         momentum: The momentum :math:`\alpha \in [0, 1]` for the running estimates.
     """
 
+    training: bool = True
+
     def __init__(
         self,
         channels: int,
@@ -46,8 +49,7 @@ class BatchNorm(Module):
     ):
         self.epsilon = epsilon
         self.momentum = momentum
-        self.training = True
-        self.state = Buffer(
+        self.stats = Buffer(
             mean=jnp.zeros((channels,)),
             var=jnp.ones((channels,)),
         )
@@ -63,21 +65,21 @@ class BatchNorm(Module):
 
         if self.training:
             y = x.reshape(-1, x.shape[-1])
-
             mean = jnp.mean(y, axis=0)
             var = jnp.var(y, axis=0)
 
-            update = lambda x, y: self.momentum * x + (1 - self.momentum) * y
-
-            state = self.state
-            state.mean = update(state.mean, jax.lax.stop_gradient(mean))
-            state.var = update(state.var, jax.lax.stop_gradient(var))
-            self.state = state
+            self.stats.mean = self.ema(self.stats.mean, jax.lax.stop_gradient(mean))
+            self.stats.var = self.ema(self.stats.var, jax.lax.stop_gradient(var))
         else:
-            mean = self.state.mean
-            var = self.state.var
+            mean = self.stats.mean
+            var = self.stats.var
 
         return (x - mean) / jnp.sqrt(var + self.epsilon)
+
+    def ema(self, x: Array, y: Array) -> Array:
+        assert same_trace(x, y), "an unsafe side effect was detected. Ensure that 'x' and 'y' have the same trace."
+
+        return self.momentum * x + (1 - self.momentum) * y
 
 
 class LayerNorm(Module):
@@ -102,6 +104,7 @@ class LayerNorm(Module):
         self.axis = axis
         self.epsilon = epsilon
 
+    @jax.jit
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:

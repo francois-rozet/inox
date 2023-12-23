@@ -9,8 +9,8 @@ import jax
 from textwrap import indent
 from typing import *
 
-from .module import *
-from ..tree_util import *
+from .module import Module
+from ..tree_util import tree_repr
 
 
 class Sequential(Module):

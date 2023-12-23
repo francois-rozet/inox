@@ -13,7 +13,7 @@ from jax import Array
 from jax.random import KeyArray
 from typing import *
 
-from .module import *
+from .module import Module
 
 
 class Linear(Module):
@@ -55,6 +55,7 @@ class Linear(Module):
         else:
             self.bias = None
 
+    @jax.jit
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:
@@ -152,6 +153,7 @@ class Conv(Module):
         self.padding = padding
         self.groups = groups
 
+    @jax.jit
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:
@@ -226,6 +228,7 @@ class ConvTransposed(Conv):
             Both :math:`C` and :math:`C'` must be divisible by :math:`G`.
     """
 
+    @jax.jit
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:

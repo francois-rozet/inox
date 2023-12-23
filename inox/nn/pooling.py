@@ -12,7 +12,7 @@ from functools import wraps
 from jax import Array
 from typing import *
 
-from .module import *
+from .module import Module
 
 
 class Pool(Module):
@@ -46,6 +46,7 @@ class Pool(Module):
         self.stride = stride
         self.padding = padding
 
+    @jax.jit
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:

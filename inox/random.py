@@ -1,16 +1,68 @@
 r"""Extended utilities for pseudo-random number generation"""
 
 __all__ = [
+    'set_seed',
+    'get_key',
     'Generator',
 ]
 
 import jax
-import math
 
+from contextlib import contextmanager
 from jax.random import KeyArray
 from typing import *
 
-from .tree_util import *
+from .debug import same_trace
+from .tree_util import Namespace
+
+
+RNG_STATE: KeyArray = None
+
+
+@contextmanager
+def set_seed(seed: KeyArray):
+    r"""Context manager that sets the PRNG state.
+
+    See also:
+        :func:`get_key`
+
+    Arguments:
+        seed: A PRNG seed.
+
+    Example:
+        >>> seed = jax.random.key(0)
+        >>> with set_seed(seed):
+        >>> ... a = jax.random.normal(get_key())
+        >>> ... b = jax.random.uniform(get_key())
+    """
+
+    global RNG_STATE
+
+    try:
+        state, RNG_STATE = RNG_STATE, seed
+        yield
+    finally:
+        RNG_STATE = state
+
+
+def get_key() -> KeyArray:
+    r"""Gets a new key from the current PRNG state.
+
+    See also:
+        :func:`set_seed`
+    """
+
+    global RNG_STATE
+    assert RNG_STATE is not None, "no PRNG seed is set. See 'inox.random.set_seed' for more information."
+
+    old = RNG_STATE
+    new, key = jax.random.split(old)
+
+    assert same_trace(old, new), "a PRNG leak was detected. Ensure that 'inox.random.set_seed' and 'inox.random.get_key' are called within the same compilation trace."
+
+    RNG_STATE = new
+
+    return key
 
 
 class Generator(Namespace):
@@ -22,6 +74,7 @@ class Generator(Namespace):
 
     Arguments:
         seed: A integer seed or PRNG key.
+        kwargs: Keyword arguments passed to :func:`jax.random.key`.
 
     Example:
         >>> rng = Generator(42)
@@ -35,11 +88,11 @@ class Generator(Namespace):
         Array([-0.08789567,  0.00974573], dtype=float32)
     """
 
-    def __init__(self, seed: Union[int, KeyArray]):
+    def __init__(self, seed: Union[int, KeyArray], **kwargs):
         if isinstance(seed, int):
-            self.key = jax.random.PRNGKey(seed)
+            self.state = jax.random.key(seed, **kwargs)
         else:
-            self.key = seed
+            self.state = seed
 
     def __call__(self, num: int = None) -> KeyArray:
         r"""
@@ -51,10 +104,10 @@ class Generator(Namespace):
         """
 
         if num is None:
-            keys, self.key = jax.random.split(self.key)
+            keys, self.state = jax.random.split(self.state)
         else:
-            keys = jax.random.split(self.key, num=num + 1)
-            keys, self.key = keys[:-1], keys[-1]
+            keys = jax.random.split(self.state, num=num + 1)
+            keys, self.state = keys[:-1], keys[-1]
 
         return keys
 
@@ -65,6 +118,3 @@ class Generator(Namespace):
             return lambda *args, **kwargs: attr(self(), *args, **kwargs)
         else:
             return attr
-
-    def tree_repr(self, **kwargs) -> str:
-        return f'{self.__class__.__name__}(key={self.key})'

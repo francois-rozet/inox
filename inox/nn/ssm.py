@@ -15,7 +15,7 @@ from jax import Array
 from jax.random import KeyArray
 from typing import *
 
-from .module import *
+from .module import Module
 
 
 class SISO(Module):
@@ -88,6 +88,7 @@ class SISOLayer(Module):
         self.siso = siso
         self.reverse = reverse
 
+    @jax.jit
     def __call__(self, u: Array) -> Array:
         r"""
         Arguments:

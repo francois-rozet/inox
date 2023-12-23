@@ -16,8 +16,8 @@ from jax import Array
 from jax.random import KeyArray
 from typing import *
 
-from .module import *
 from .linear import Linear
+from .module import Module
 
 
 class Cell(Module):
@@ -120,6 +120,7 @@ class GRUCell(Cell):
         self.in_features = in_features
         self.hid_features = hid_features
 
+    @jax.jit
     def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
         r"""
         Arguments:
@@ -188,6 +189,7 @@ class BRCell(Module):
         self.in_features = in_features
         self.hid_features = hid_features
 
+    @jax.jit
     def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
         r"""
         Arguments:
@@ -253,6 +255,7 @@ class MGUCell(Module):
         self.in_features = in_features
         self.hid_features = hid_features
 
+    @jax.jit
     def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
         r"""
         Arguments:
@@ -310,14 +313,15 @@ class LSTMCell(Cell):
         self.in_features = in_features
         self.hid_features = hid_features
 
+    @jax.jit
     def __call__(
         self,
-        h: Tuple[Array, Array],
+        hc: Tuple[Array, Array],
         x: Array,
     ) -> Tuple[Tuple[Array, Array], Array]:
         r"""
         Arguments:
-            h: The previous hidden and cell states :math:`(h_{i-1}, c_{i-1})`,
+            hc: The previous hidden and cell states :math:`(h_{i-1}, c_{i-1})`,
                 each with shape :math:`(*, H)`.
             x: The input vector :math:`x_i`, with shape :math:`(*, C)`.
 
@@ -325,7 +329,7 @@ class LSTMCell(Cell):
             The hidden and cell states :math:`((h_i, c_i), h_i)`.
         """
 
-        h, c = h
+        h, c = hc
         i, f, g, o = jnp.split(self.lin_h(h) + self.lin_x(x), 4, axis=-1)
 
         i = jax.nn.sigmoid(i)
