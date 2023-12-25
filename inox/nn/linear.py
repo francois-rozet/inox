@@ -19,7 +19,7 @@ from .module import Module
 class Linear(Module):
     r"""Creates a linear layer.
 
-    .. math:: y = W \cdot x + b
+    .. math:: y = W x + b
 
     Arguments:
         key: A PRNG key for initialization.

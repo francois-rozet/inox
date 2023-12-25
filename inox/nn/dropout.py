@@ -19,10 +19,10 @@ class Dropout(Module):
 
     At training,
 
-    .. math:: y = \frac{b x}{1 - p}
+    .. math:: y = \frac{m \odot x}{1 - p}
 
-    where :math:`b \in \{0, 1\}` is drawn from a Bernoulli distribution such that
-    :math:`P(b = 0) = p`. This has proven to be an effective technique for
+    where the binary mask :math:`m` is drawn from a Bernoulli distribution such that
+    :math:`P(m_i = 0) = p`. This has proven to be an effective technique for
     regularization and preventing overfitting. At evaluation, the layer simply computes
     the identity :math:`y = x`.
 
@@ -36,7 +36,7 @@ class Dropout(Module):
 
     training: bool = True
 
-    def __init__(self, p: float = 0.5):
+    def __init__(self, p: float):
         self.p = p
 
     def __call__(self, x: Array, key: KeyArray = None) -> Array:
@@ -49,12 +49,16 @@ class Dropout(Module):
             The output tensor :math:`y`, with shape :math:`(*)`.
         """
 
+        if self.training and key is None:
+            key = get_key()
+
+        return self._call_(x, key)
+
+    @jax.jit
+    def _call_(self, x: Array, key: KeyArray = None) -> Array:
         if self.training:
-            if key is None:
-                key = get_key()
+            mask = jax.random.bernoulli(key, 1 - self.p, shape=x.shape)
 
-            b = jax.random.bernoulli(key, 1 - self.p, shape=x.shape)
-
-            return jax.numpy.where(b, x / (1 - self.p), 0)
+            return jax.numpy.where(mask, x / (1 - self.p), 0)
         else:
             return x
