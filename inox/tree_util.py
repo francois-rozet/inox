@@ -111,51 +111,45 @@ class Namespace(metaclass=PyTreeMeta):
 
 
 class Static(metaclass=PyTreeMeta):
-    r"""Wraps an hashable object as a leafless PyTree.
+    r"""Wraps an hashable value as a leafless PyTree.
 
     Arguments:
-        x: An hashable object to wrap.
+        value: An hashable value to wrap.
 
     Example:
         >>> x = Static((0, 'one', None))
+        >>> x.value
+        (0, 'one', None)
         >>> jax.tree_util.tree_leaves(x)
         []
         >>> jax.tree_util.tree_structure(x)
         PyTreeDef(CustomNode(Static[(0, 'one', None)], []))
     """
 
-    __slots__ = ('x')
+    __slots__ = ('value')
 
-    def __init__(self, x: Hashable):
-        if not isinstance(x, Hashable):
-            warn(f"'{type(x).__name__}' object is not hashable.")
+    def __init__(self, value: Hashable):
+        if not isinstance(value, Hashable):
+            warn(f"'{type(value).__name__}' object is not hashable.")
 
-        self.x = x
-
-    def __call__(self) -> Hashable:
-        r"""
-        Returns:
-            The wrapped object.
-        """
-
-        return self.x
+        self.value = value
 
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({repr(self.x)})'
+        return f'{self.__class__.__name__}({repr(self.value)})'
 
     def tree_flatten(self):
-        return (), self.x
+        return (), self.value
 
     @classmethod
-    def tree_unflatten(cls, x, _):
-        return cls(x)
+    def tree_unflatten(cls, value, _):
+        return cls(value)
 
 
 class Auto(Namespace):
     r"""Subclass of :class:`Namespace` that automatically detects non-array leaves
-    and considers them as static (part of the tree structure).
+    and considers them as static.
 
-    Note:
+    Important:
         :py:`object()` leaves are never considered static.
 
     Arguments:
@@ -178,31 +172,25 @@ class Auto(Namespace):
     """
 
     def tree_flatten(self):
-        __dict__ = jtu.tree_map(
+        values, names = super().tree_flatten()
+
+        values = jtu.tree_map(
             f=lambda x: x if type(x) is object or is_array(x) or is_auto(x) else Static(x),
-            tree=self.__dict__,
+            tree=values,
             is_leaf=is_auto,
         )
-
-        if __dict__:
-            names, values = zip(*sorted(__dict__.items()))
-        else:
-            names, values = (), ()
 
         return values, names
 
     @classmethod
     def tree_unflatten(cls, names, values):
-        __dict__ = dict(zip(names, values))
-
-        self = object.__new__(cls)
-        self.__dict__ = jtu.tree_map(
-            f=lambda x: x() if is_static(x) else x,
-            tree=__dict__,
+        values = jtu.tree_map(
+            f=lambda x: x.value if is_static(x) else x,
+            tree=values,
             is_leaf=lambda x: is_auto(x) or is_static(x),
         )
 
-        return self
+        return super().tree_unflatten(names, values)
 
 
 def tree_repr(
