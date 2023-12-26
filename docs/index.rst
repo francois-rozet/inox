@@ -7,7 +7,7 @@
 Inox
 ====
 
-Inox is a minimal `JAX <https://github.com/google/jax>`_ library for neural networks with an intuitive PyTorch-like interface. As with `Equinox <https://github.com/patrick-kidger/equinox>`_, modules are represented as PyTrees, which allows to pass networks in and out of native JAX transformations, like :func:`jax.jit` or :func:`jax.vmap`. However, Inox modules automatically detect non-array leaves, like hyper-parameters or boolean flags, and consider them as static. Consequently, working with Inox modules does not require custom versions of JAX transformations that filter out non-array leaves.
+Inox is a minimal `JAX <https://github.com/google/jax>`_ library for neural networks with an intuitive PyTorch-like interface. As with `Equinox <https://github.com/patrick-kidger/equinox>`_, modules are represented as PyTrees, which allows to pass networks in and out of JAX transformations, like :func:`jax.jit` or :func:`jax.vmap`. However, Inox modules automatically detect non-array leaves, like hyper-parameters or boolean flags, and consider them as static. Consequently, Inox modules are compatible with native JAX transformations, and do not require custom lifted transformations.
 
 Installation
 ------------
