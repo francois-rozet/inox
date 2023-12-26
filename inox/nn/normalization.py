@@ -18,7 +18,7 @@ from ..debug import same_trace
 class BatchNorm(Module):
     r"""Creates a batch-normalization layer.
 
-    .. math:: y_i = \frac{x_i - \mathbb{E}[x_i]}{\sqrt{\mathbb{V}[x_i] + \epsilon}}
+    .. math:: y = \frac{x - \mathbb{E}[x]}{\sqrt{\mathbb{V}[x] + \epsilon}}
 
     The mean and variance are calculated over the batch and spatial axes. During
     training, the layer keeps running estimates of the computed mean and variance, which
@@ -68,8 +68,10 @@ class BatchNorm(Module):
             mean = jnp.mean(y, axis=0)
             var = jnp.var(y, axis=0)
 
-            self.stats.mean = self.ema(self.stats.mean, jax.lax.stop_gradient(mean))
-            self.stats.var = self.ema(self.stats.var, jax.lax.stop_gradient(var))
+            self.stats = Buffer(
+                mean=self.ema(self.stats.mean, jax.lax.stop_gradient(mean)),
+                var=self.ema(self.stats.var, jax.lax.stop_gradient(var)),
+            )
         else:
             mean = self.stats.mean
             var = self.stats.var
@@ -77,7 +79,7 @@ class BatchNorm(Module):
         return (x - mean) / jnp.sqrt(var + self.epsilon)
 
     def ema(self, x: Array, y: Array) -> Array:
-        assert same_trace(x, y), "an unsafe side effect was detected. Ensure that 'x' and 'y' have the same trace."
+        assert same_trace(x, y), "an unsafe side effect was detected. Ensure that the running statistic and input tensors have the same trace."
 
         return self.momentum * x + (1 - self.momentum) * y
 
@@ -85,7 +87,7 @@ class BatchNorm(Module):
 class LayerNorm(Module):
     r"""Creates a layer-normalization layer.
 
-    .. math:: y_i = \frac{x_i - \mathbb{E}[x_i]}{\sqrt{\mathbb{V}[x_i] + \epsilon}}
+    .. math:: y = \frac{x - \mathbb{E}[x]}{\sqrt{\mathbb{V}[x] + \epsilon}}
 
     References:
         | Layer Normalization (Ba et al., 2016)

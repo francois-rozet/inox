@@ -256,7 +256,7 @@ class Module(Auto):
         r"""Toggles between training and evaluation modes.
 
         This is primarily useful for (sub)modules that behave differently at training
-        and evaluation, such as :class:`inox.nn.dropout.Dropout` and
+        and evaluation, such as :class:`inox.nn.dropout.TrainingDropout` and
         :class:`inox.nn.normalization.BatchNorm`.
 
         .. code-block:: python

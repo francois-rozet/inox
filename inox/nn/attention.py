@@ -14,7 +14,6 @@ from typing import *
 
 from .linear import Linear
 from .module import Module
-from ..random import get_key
 
 
 @jax.jit
@@ -78,10 +77,8 @@ class MultiheadAttention(Module):
         causal: Whether the attention mask is causal or not. If :py:`True`, the
             :math:`i`-th query is only allowed to attend the :math:`j`-th key if
             :math:`j - i \leq T - S`.
-        dropout: The dropout probability on attention weights.
+        dropout: The dropout rate on attention weights.
     """
-
-    training: bool = True
 
     def __init__(
         self,
@@ -108,6 +105,7 @@ class MultiheadAttention(Module):
         self.causal = causal
         self.dropout = dropout
 
+    @jax.jit
     def __call__(
         self,
         xq: Array,
@@ -126,26 +124,12 @@ class MultiheadAttention(Module):
             mask: A boolean attention mask, with shape :math:`(*, S, T)`.
                 A :py:`False` value indicates that the corresponding attention weight
                 is set to :math:`-\infty`.
-            key: A PRNG key. If :py:`None`, :func:`inox.random.get_key` is used instead.
+            key: A PRNG key. If :py:`None`, dropout is not applied.
 
         Returns:
             The output tensor :math:`Y`, with shape :math:`(*, S, C')`.
         """
 
-        if self.training and self.dropout > 0.0 and key is None:
-            key = get_key()
-
-        return self._call_(xq, xk, xv, mask, key)
-
-    @jax.jit
-    def _call_(
-        self,
-        xq: Array,
-        xk: Array = None,
-        xv: Array = None,
-        mask: Array = None,
-        key: KeyArray = None,
-    ) -> Array:
         if xk is None:
             xk = xq
 
@@ -171,7 +155,7 @@ class MultiheadAttention(Module):
 
             mask = jax.numpy.tril(mask, T - S)
 
-        if self.training and self.dropout > 0.0:
+        if key is not None:
             shape = jax.numpy.broadcast_shapes(
                 (*q.shape[:-2], S, 1),
                 (*k.shape[:-2], 1, T),
