@@ -35,7 +35,6 @@ class Rearrange(Module):
         self.pattern = pattern
         self.lengths = lengths
 
-    @jax.jit
     def __call__(self, x: Array) -> Array:
         return einops.rearrange(x, self.pattern, **self.lengths)
 
@@ -57,7 +56,6 @@ class Reduce(Module):
         self.reduction = reduction
         self.lengths = lengths
 
-    @jax.jit
     def __call__(self, x: Array) -> Array:
         return einops.reduce(x, self.pattern, self.reduction, **self.lengths)
 
@@ -77,6 +75,5 @@ class Repeat(Module):
         self.pattern = pattern
         self.lengths = lengths
 
-    @jax.jit
     def __call__(self, x: Array) -> Array:
         return einops.repeat(x, self.pattern, **self.lengths)

@@ -120,7 +120,6 @@ class GRUCell(Cell):
         self.in_features = in_features
         self.hid_features = hid_features
 
-    @jax.jit
     def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
         r"""
         Arguments:
@@ -189,7 +188,6 @@ class BRCell(Module):
         self.in_features = in_features
         self.hid_features = hid_features
 
-    @jax.jit
     def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
         r"""
         Arguments:
@@ -255,7 +253,6 @@ class MGUCell(Module):
         self.in_features = in_features
         self.hid_features = hid_features
 
-    @jax.jit
     def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
         r"""
         Arguments:
@@ -313,7 +310,6 @@ class LSTMCell(Cell):
         self.in_features = in_features
         self.hid_features = hid_features
 
-    @jax.jit
     def __call__(
         self,
         hc: Tuple[Array, Array],

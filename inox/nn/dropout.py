@@ -35,7 +35,6 @@ class Dropout(Module):
     def __init__(self, p: float):
         self.p = p
 
-    @jax.jit
     def __call__(self, x: Array, key: KeyArray) -> Array:
         r"""
         Arguments:

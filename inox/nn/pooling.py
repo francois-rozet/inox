@@ -36,7 +36,6 @@ class Pool(Module):
         self.stride = stride
         self.padding = padding
 
-    @jax.jit
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:

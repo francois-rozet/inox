@@ -2,7 +2,6 @@ r"""State space model (SSM) layers"""
 
 __all__ = [
     'SISO',
-    'SISOLayer',
     'S4',
 ]
 
@@ -24,7 +23,7 @@ class SISO(Module):
     A SISO state space model defines a system of equations of the form
 
     .. math::
-        x'(t) & = A x(t) + B u(t) \\
+        \dot{x}(t) & = A x(t) + B u(t) \\
         y(t) & = C x(t)
 
     where :math:`u(t), y(t) \in \mathbb{C}` are input and output signals and :math:`x(t)
@@ -47,7 +46,24 @@ class SISO(Module):
 
     Wikipedia:
         https://wikipedia.org/wiki/State-space_representation
+
+    See also:
+        :class:`S4`
     """
+
+    def __call__(self, u: Array) -> Array:
+        r"""
+        Arguments:
+            u: A sequence of input scalars :math:`u_{1:L}`, with shape :math:`(*, L)`.
+
+        Returns:
+            The sequence of output scalars :math:`y_{1:L}`, with shape :math:`(*, L)`.
+        """
+
+        L = u.shape[-1]
+        k = self.kernel(L)
+
+        return jax.scipy.signal.fftconvolve(k, u, axes=-1)[..., :L]
 
     def discrete(self) -> Tuple[Array, Array, Array]:
         r"""
@@ -70,46 +86,6 @@ class SISO(Module):
         raise NotImplementedError()
 
 
-class SISOLayer(Module):
-    r"""Creates a SISO layer.
-
-    Arguments:
-        siso: A stack of :math:`C` SISO state space models.
-        reverse: Whether to apply the system in reverse or not.
-
-    Example:
-        >>> keys = jax.random.split(key, in_features)
-        >>> siso = jax.vmap(S4, in_axes=(0, None))(keys, hid_features)
-        >>> layer = SISOLayer(siso)
-        >>> y = layer(u)
-    """
-
-    def __init__(self, siso: SISO, reverse: bool = False):
-        self.siso = siso
-        self.reverse = reverse
-
-    @jax.jit
-    def __call__(self, u: Array) -> Array:
-        r"""
-        Arguments:
-            u: A sequence of input vectors :math:`u_{1:L}`, with shape :math:`(*, L, C)`.
-
-        Returns:
-            The sequence of output vectors :math:`y_{1:L}`, with shape :math:`(*, L, C)`.
-        """
-
-        L = u.shape[-2]
-        k = jax.vmap(lambda siso: siso.kernel(L))(self.siso)
-
-        convolve = lambda k, u: jax.scipy.signal.fftconvolve(k.T, u, axes=0)
-        convolve = jnp.vectorize(convolve, signature='(C,L),(L,C)->(2L,C)')
-
-        if self.reverse:
-            return convolve(k[:, ::-1], u)[..., -L:, :]
-        else:
-            return convolve(k, u)[..., :L, :]
-
-
 class S4(SISO):
     r"""Creates an S4 state space model.
 
@@ -123,6 +99,11 @@ class S4(SISO):
     Arguments:
         key: A PRNG key for initialization.
         hid_features: The number of hidden features :math:`H`.
+
+    Example:
+        >>> ssm = S4(key, hid_features=64)
+        >>> u = jax.numpy.linspace(0.0, 1.0, 1024)
+        >>> y = ssm(u)
     """
 
     def __init__(self, key: KeyArray, hid_features: int):
@@ -153,7 +134,7 @@ class S4(SISO):
         """
 
         P = np.sqrt(np.arange(n) + 1 / 2)
-        S = jnp.outer(P, P.conj())
+        S = np.outer(P, P.conj())
         S = np.tril(S) - np.triu(S)
 
         # Diagonal A

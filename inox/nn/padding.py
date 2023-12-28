@@ -33,7 +33,6 @@ class Pad(Module):
         self.mode = mode
         self.value = value
 
-    @jax.jit
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:

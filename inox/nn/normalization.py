@@ -106,7 +106,6 @@ class LayerNorm(Module):
         self.axis = axis
         self.epsilon = epsilon
 
-    @jax.jit
     def __call__(self, x: Array) -> Array:
         r"""
         Arguments:

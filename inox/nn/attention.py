@@ -16,7 +16,6 @@ from .linear import Linear
 from .module import Module
 
 
-@jax.jit
 def attention(
     q: Array,
     k: Array,
@@ -105,7 +104,6 @@ class MultiheadAttention(Module):
         self.causal = causal
         self.dropout = dropout
 
-    @jax.jit
     def __call__(
         self,
         xq: Array,
