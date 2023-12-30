@@ -1,6 +1,7 @@
 r"""Extended utilities for tree-like data structures"""
 
 __all__ = [
+    'PyArray',
     'Namespace',
     'Static',
     'Auto',
@@ -45,6 +46,107 @@ class PyTreeMeta(type):
             jtu.register_pytree_node_class(cls)
 
         return cls
+
+
+class PyArray(metaclass=PyTreeMeta):
+    r"""Wraps an array as a PyTree.
+
+    Subclassing :class:`PyArray` allows to associate metadata (name, role, ...) to
+    arrays, while preserving the array interface (`.shape`, `.dtype`, ...) and
+    supporting :mod:`jax.numpy` operations.
+
+    Arguments:
+        value: An array value.
+
+    Example:
+        >>> x = jax.numpy.arange(5)
+        >>> x = PyArray(x); x
+        int32[5]
+        >>> jax.numpy.mean(x)
+        Array(2., dtype=float32)
+    """
+
+    def __init__(self, value: Array):
+        self.value = value
+
+    def __array__(self, dtype=None):
+        return self.value.__array__(dtype)
+
+    def __array_module__(self, types):
+        return self.value.__array_module__(types)
+
+    def __jax_array__(self) -> Array:
+        if hasattr(self.value, '__jax_array__'):
+            return self.value.__jax_array__()
+        else:
+            return self.value
+
+    def __getattr__(self, attr: str) -> Any: return getattr(self.value, attr)
+    def __getitem__(self, key: Hashable): return self.value[key]
+    def __len__(self) -> int: return len(self.value)
+    def __iter__(self) -> Iterable: return iter(self.value)
+    def __reversed__(self) -> Iterable: return reversed(self.value)
+
+    def __neg__(self): return self.value.__neg__()
+    def __pos__(self): return self.value.__pos__()
+    def __abs__(self): return self.value.__abs__()
+    def __invert__(self): return self.value.__invert__()
+    def __round__(self, ndigits=None): return self.value.__round__(ndigits)
+    def __eq__(self, other): return self.value.__eq__(other)
+    def __ne__(self, other): return self.value.__ne__(other)
+    def __lt__(self, other): return self.value.__lt__(other)
+    def __le__(self, other): return self.value.__le__(other)
+    def __gt__(self, other): return self.value.__gt__(other)
+    def __ge__(self, other): return self.value.__ge__(other)
+    def __add__(self, other): return self.value.__add__(other)
+    def __radd__(self, other): return self.value.__radd__(other)
+    def __sub__(self, other): return self.value.__sub__(other)
+    def __rsub__(self, other): return self.value.__rsub__(other)
+    def __mul__(self, other): return self.value.__mul__(other)
+    def __rmul__(self, other): return self.value.__rmul__(other)
+    def __div__(self, other): return self.value.__div__(other)
+    def __rdiv__(self, other): return self.value.__rdiv__(other)
+    def __truediv__(self, other): return self.value.__truediv__(other)
+    def __rtruediv__(self, other): return self.value.__rtruediv__(other)
+    def __floordiv__(self, other): return self.value.__floordiv__(other)
+    def __rfloordiv__(self, other): return self.value.__rfloordiv__(other)
+    def __divmod__(self, other): return self.value.__divmod__(other)
+    def __rdivmod__(self, other): return self.value.__rdivmod__(other)
+    def __mod__(self, other): return self.value.__mod__(other)
+    def __rmod__(self, other): return self.value.__rmod__(other)
+    def __pow__(self, other): return self.value.__pow__(other)
+    def __rpow__(self, other): return self.value.__rpow__(other)
+    def __matmul__(self, other): return self.value.__matmul__(other)
+    def __rmatmul__(self, other): return self.value.__rmatmul__(other)
+    def __and__(self, other): return self.value.__and__(other)
+    def __rand__(self, other): return self.value.__rand__(other)
+    def __or__(self, other): return self.value.__or__(other)
+    def __ror__(self, other): return self.value.__ror__(other)
+    def __xor__(self, other): return self.value.__xor__(other)
+    def __rxor__(self, other): return self.value.__rxor__(other)
+    def __lshift__(self, other): return self.value.__lshift__(other)
+    def __rlshift__(self, other): return self.value.__rlshift__(other)
+    def __rshift__(self, other): return self.value.__rshift__(other)
+    def __rrshift__(self, other): return self.value.__rrshift__(other)
+
+    def __repr__(self) -> str:
+        return self.tree_repr()
+
+    def tree_repr(self, **kwargs) -> str:
+        return tree_repr(self.value, **kwargs)
+
+    def tree_flatten(self):
+        return [self.value], None
+
+    def tree_flatten_with_keys(self):
+        return [('', self.value)], None
+
+    @classmethod
+    def tree_unflatten(cls, _, leaves):
+        self = object.__new__(cls)
+        self.value = leaves[0]
+
+        return self
 
 
 class Namespace(metaclass=PyTreeMeta):
@@ -126,23 +228,30 @@ class Static(metaclass=PyTreeMeta):
         PyTreeDef(CustomNode(Static[(0, 'one', None)], []))
     """
 
-    __slots__ = ('value')
-
     def __init__(self, value: Hashable):
         if not isinstance(value, Hashable):
             warn(f"'{type(value).__name__}' object is not hashable.")
 
         self.value = value
 
+    def __hash__(self) -> int:
+        return hash((type(self), self.value))
+
     def __repr__(self) -> str:
-        return f'{self.__class__.__name__}({repr(self.value)})'
+        return self.tree_repr()
+
+    def tree_repr(self, **kwargs) -> str:
+        return f'{self.__class__.__name__}({tree_repr(self.value, **kwargs)})'
 
     def tree_flatten(self):
         return (), self.value
 
     @classmethod
     def tree_unflatten(cls, value, _):
-        return cls(value)
+        self = object.__new__(cls)
+        self.value = value
+
+        return self
 
 
 class Auto(Namespace):

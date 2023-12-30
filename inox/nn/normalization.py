@@ -11,7 +11,7 @@ import jax.numpy as jnp
 from jax import Array
 from typing import *
 
-from .module import Module, Buffer
+from .module import Module, Statistic
 from ..debug import same_trace
 
 
@@ -21,9 +21,9 @@ class BatchNorm(Module):
     .. math:: y = \frac{x - \mathbb{E}[x]}{\sqrt{\mathbb{V}[x] + \epsilon}}
 
     The mean and variance are calculated over the batch and spatial axes. During
-    training, the layer keeps running estimates of the computed mean and variance, which
-    are then used for normalization during evaluation. The update rule for a running
-    average statistic :math:`\hat{s}` is
+    training, the layer keeps running estimates of the mean and variance, which are then
+    used for normalization during evaluation. The update rule for a running average
+    statistic :math:`\hat{s}` is
 
     .. math:: \hat{s} \gets \alpha \hat{s} + (1 - \alpha) s
 
@@ -49,10 +49,9 @@ class BatchNorm(Module):
     ):
         self.epsilon = epsilon
         self.momentum = momentum
-        self.stats = Buffer(
-            mean=jnp.zeros((channels,)),
-            var=jnp.ones((channels,)),
-        )
+
+        self.mean = Statistic(jnp.zeros(channels))
+        self.var = Statistic(jnp.ones(channels))
 
     def __call__(self, x: Array) -> Array:
         r"""
@@ -68,18 +67,16 @@ class BatchNorm(Module):
             mean = jnp.mean(y, axis=0)
             var = jnp.var(y, axis=0)
 
-            self.stats = Buffer(
-                mean=self.ema(self.stats.mean, jax.lax.stop_gradient(mean)),
-                var=self.ema(self.stats.var, jax.lax.stop_gradient(var)),
-            )
+            self.mean.value = self.ema(self.mean, jax.lax.stop_gradient(mean))
+            self.var.value = self.ema(self.var, jax.lax.stop_gradient(var))
         else:
-            mean = self.stats.mean
-            var = self.stats.var
+            mean = self.mean
+            var = self.var
 
         return (x - mean) / jnp.sqrt(var + self.epsilon)
 
     def ema(self, x: Array, y: Array) -> Array:
-        assert same_trace(x, y), "an unsafe side effect was detected. Ensure that the running statistic and input tensors have the same trace."
+        assert same_trace(x, y), "an unsafe side effect was detected. Ensure that the running statistic and input arrays have the same trace."
 
         return self.momentum * x + (1 - self.momentum) * y
 

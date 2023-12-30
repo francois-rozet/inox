@@ -13,7 +13,7 @@ from jax import Array
 from jax.random import KeyArray
 from typing import *
 
-from .module import Module
+from .module import Module, Parameter
 
 
 class Linear(Module):
@@ -38,19 +38,23 @@ class Linear(Module):
         keys = jax.random.split(key, 2)
         lim = 1 / in_features ** 0.5
 
-        self.weight = jax.random.uniform(
-            key=keys[0],
-            shape=(in_features, out_features),
-            minval=-lim,
-            maxval=lim,
+        self.weight = Parameter(
+            jax.random.uniform(
+                key=keys[0],
+                shape=(in_features, out_features),
+                minval=-lim,
+                maxval=lim,
+            )
         )
 
         if bias:
-            self.bias = jax.random.uniform(
-                key=keys[1],
-                shape=(out_features,),
-                minval=-lim,
-                maxval=lim,
+            self.bias = Parameter(
+                jax.random.uniform(
+                    key=keys[1],
+                    shape=(out_features,),
+                    minval=-lim,
+                    maxval=lim,
+                )
             )
         else:
             self.bias = None
@@ -118,19 +122,23 @@ class Conv(Module):
         keys = jax.random.split(key, 2)
         lim = 1 / (math.prod(kernel_size) * in_channels) ** 0.5
 
-        self.kernel = jax.random.uniform(
-            key=keys[0],
-            shape=(*kernel_size, in_channels, out_channels),
-            minval=-lim,
-            maxval=lim,
+        self.kernel = Parameter(
+            jax.random.uniform(
+                key=keys[0],
+                shape=(*kernel_size, in_channels, out_channels),
+                minval=-lim,
+                maxval=lim,
+            )
         )
 
         if bias:
-            self.bias = jax.random.uniform(
-                key=keys[1],
-                shape=(out_channels,),
-                minval=-lim,
-                maxval=lim,
+            self.bias = Parameter(
+                jax.random.uniform(
+                    key=keys[1],
+                    shape=(out_channels,),
+                    minval=-lim,
+                    maxval=lim,
+                )
             )
         else:
             self.bias = None

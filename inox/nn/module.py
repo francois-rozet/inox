@@ -4,7 +4,10 @@ from __future__ import annotations
 
 __all__ = [
     'Module',
-    'Buffer',
+    'ModuleDef',
+    'Variable',
+    'Parameter',
+    'Statistic',
 ]
 
 import jax
@@ -13,50 +16,50 @@ import jax.tree_util as jtu
 from jax import Array
 from typing import *
 
-from ..tree_util import Auto
-
-
-def is_placeholder(x: Any) -> bool:
-    return isinstance(x, Placeholder)
+from ..tree_util import PyArray, Static, Auto
 
 
 def is_module(x: Any) -> bool:
     return isinstance(x, Module)
 
 
-def is_buffer(x: Any) -> bool:
-    return isinstance(x, Buffer)
-
-
-class Placeholder(Auto):
-    r"""Dummy placeholder class."""
-
-    pass
+def is_parameter(x: Any) -> bool:
+    return isinstance(x, Parameter)
 
 
 class Module(Auto):
     r"""Base class for all modules.
 
-    A module is a PyTree whose attributes are branches, meaning that you can assign any
+    A module is a PyTree whose branches are its attributes. A branch can be any
     PyTree-compatible object (:py:`tuple`, :py:`list`, :py:`dict`, ...), including other
-    modules, as regular attribute. Parametric functions, such as neural networks, should
-    subclass :class:`Module`.
+    modules. Parametric functions, such as neural networks, should subclass
+    :class:`Module` and indicate their parameters with :class:`Parameter`.
 
     .. code-block:: python
 
         import jax
+        import jax.random as jrd
         import inox
         import inox.nn as nn
 
+        class Linear(nn.Module):
+            def __init__(self, key, in_features, out_features):
+                keys = jrd.split(key, 2)
+
+                self.weight = Parameter(jrd.normal(keys[0], (in_features, out_features)))
+                self.bias = Parameter(jrd.normal(keys[1], (out_features,)))
+
+            def __call__(self, x):
+                return x @ self.weight + self.bias
+
         class Classifier(nn.Module):
             def __init__(self, key, in_features, num_classes):
-                keys = jax.random.split(key, 3)
+                keys = jrd.split(key, 3)
 
-                self.l1 = nn.Linear(keys[0], in_features, 64)
-                self.l2 = nn.Linear(keys[1], 64, 64)
-                self.l3 = nn.Linear(keys[2], 64, num_classes)
+                self.l1 = Linear(keys[0], in_features, 64)
+                self.l2 = Linear(keys[1], 64, 64)
+                self.l3 = Linear(keys[2], 64, num_classes)
                 self.relu = nn.ReLU()
-                self.softmax = nn.Softmax()
 
                 self.return_logits = True  # static leaf
 
@@ -68,7 +71,7 @@ class Module(Auto):
                 if self.return_logits:
                     return x
                 else:
-                    return self.softmax(x)
+                    return jax.nn.softmax(x)
 
         key = jax.random.key(0)
         model = Classifier(key)
@@ -90,184 +93,58 @@ class Module(Auto):
 
         grads = jax.grad(loss_fn)(model, x, y)
 
+    However, JAX transformations are designed to work on pure functions. Some neural
+    network layers, including batch normalization, are not pure as they hold a state
+    which is updated as part of the layer's execution. In this case, using a
+    functionally pure definition of the model is safer for training, but also convenient
+    as some internal arrays do not require gradients.
+
+    .. code-block:: python
+
+        modef, params, others = model.pure(nn.Parameter)
+        optimizer = optax.adamw(learning_rate=1e-3)
+        opt_state = optimizer.init(params)
+
+        @jax.jit
+        def step(params, others, opt_state, x, y):  # gradient descent step
+            def loss_fn(params):
+                model = modef(params, others)
+                logits = jax.vmap(model)(x)
+                loss = optax.softmax_cross_entropy(logits, y)
+                _, _, others = model.pure(nn.Parameter)
+
+                return jax.numpy.mean(loss), others
+
+            grads, others = jax.grad(loss_fn, has_aux=True)(params)
+            updates, opt_state = optimizer.update(grads, opt_state, params)
+            params = optax.apply_updates(params, updates)
+
+            return params, others, opt_state
+
+        for x, y in trainset:  # training loop
+            params, others, opt_state = step(params, others, opt_state, x, y)
+
+        model = modef(params, others)
+
     Arguments:
         kwargs: A name-value mapping.
     """
 
-    def pure(self) -> Tuple[Module, Dict[str, Dict[str, Array]]]:
-        r"""Returns a functionally pure copy of the module.
-
-        JAX transformations are designed to work on pure functions. Some neural network
-        layers, including batch normalization, are not pure as they hold a state which
-        is updated as part of the layer's execution.
-
-        The :meth:`Module.pure` method separates the functional definition of the module
-        from its state, that is its parameters and buffers, which prevents unnoticed
-        state mutations during training.
-
-        .. code-block:: python
-
-            # Impure
-            output = model(*args)
-
-            # Pure
-            stateless, state = model.pure()
-            output, mutations = stateless.apply(state, *args)
-            state['buffers'].update(mutations)  # only buffers can mutate
-
-        Using the functional definition of modules is safer but also handy for training
-        with Optax optimizers when the model contains buffers.
-
-        .. code-block:: python
-
-            stateless, state = model.pure()
-            params, buffers = state['params'], state['buffers']
-            optimizer = optax.adamw(learning_rate=1e-3)
-            opt_state = optimizer.init(params)
-
-            @jax.jit
-            def step(params, buffers, opt_state, x, y):  # gradient descent step
-                def ell(params):
-                    state = dict(params=params, buffers=buffers)
-                    logits, mutations = stateless.apply(state, x)
-                    loss = optax.softmax_cross_entropy(logits, y)
-
-                    return jax.numpy.mean(loss), mutations
-
-                grads, mutations = jax.grad(ell, has_aux=True)(params)
-                updates, opt_state = optimizer.update(grads, opt_state, params)
-                params = optax.apply_updates(params, updates)
-                buffers.update(mutations)
-
-                return params, buffers, opt_state
-
-            for x, y in trainset:  # training loop
-                params, buffers, opt_state = step(params, buffers, opt_state, x, y)
-
-            model = stateless.impure(dict(params=params, buffers=buffers))
-
-        See also:
-            :meth:`Module.impure` and :meth:`Module.apply`
-
-        Returns:
-            A stateless copy of the module and the state dictionary.
-        """
-
-        state = dict(params={}, buffers={})
-
-        def f(path, leaf):
-            if is_buffer(leaf):
-                def g(subpath, subleaf):
-                    key = jtu.keystr([*path, *subpath])
-                    state['buffers'][key] = subleaf
-
-                    return Placeholder()
-
-                return jtu.tree_map_with_path(f=g, tree=leaf)
-            else:
-                key = jtu.keystr(path)
-                state['params'][key] = leaf
-
-                return Placeholder()
-
-        stateless = jtu.tree_map_with_path(f=f, tree=self, is_leaf=is_buffer)
-
-        return stateless, state
-
-    def impure(self, state: Dict[str, Dict[str, Array]]):
-        r"""Returns a functionally impure copy of the module.
-
-        Arguments:
-            state: The state dictionary.
-
-        Returns:
-            A copy of the module where parameters and buffers have been put back in
-            place.
-        """
-
-        leaves = {
-            key: leaf
-            for substate in state.values()
-            for key, leaf in substate.items()
-        }
-
-        def f(path, leaf):
-            if is_placeholder(leaf):
-                key = jtu.keystr(path)
-
-                if key in leaves:
-                    leaf = leaves.pop(key)
-                else:
-                    raise RuntimeError(f"Missing key \"{key}\" in state.")
-
-            return leaf
-
-        module = jtu.tree_map_with_path(f=f, tree=self, is_leaf=is_placeholder)
-
-        if leaves:
-            keys = ', '.join(f'"{key}"' for key in leaves)
-
-            raise RuntimeError(f"Unexpected key(s) in state: {keys}.")
-
-        return module
-
-    def apply(
-        self,
-        state: Dict[str, Dict[str, Array]],
-        *args,
-        method: Union[str, Callable] = None,
-        **kwargs,
-    ) -> Tuple[Any, Dict[str, Array]]:
-        r"""Applies a module method for a given state.
-
-        Arguments:
-            state: The state dictionary.
-            method: The method to apply. Either a name (string) or a callable.
-                If :py:`None`, :py:`__call__` is applied instead.
-            args: The postitional arguments of the method.
-            kwargs: The keyword arguments of the method.
-
-        Returns:
-            The method's output and the state mutations.
-        """
-
-        # Call
-        module = self.impure(state)
-
-        if method is None:
-            output = module(*args, **kwargs)
-        elif isinstance(method, str):
-            output = getattr(module, method)(*args, **kwargs)
-        else:
-            output = method(module, *args, **kwargs)
-
-        _, new_state = module.pure()
-
-        # Mutations
-        mutations = {}
-
-        for key, buffer in new_state['buffers'].items():
-            if buffer is not state['buffers'][key]:
-                mutations[key] = buffer
-
-        return output, mutations
-
     def train(self, mode: bool = True):
         r"""Toggles between training and evaluation modes.
 
-        This is primarily useful for (sub)modules that behave differently at training
-        and evaluation, such as :class:`inox.nn.dropout.TrainingDropout` and
+        This method is primarily useful for (sub)modules that behave differently at
+        training and evaluation, such as :class:`inox.nn.dropout.TrainingDropout` and
         :class:`inox.nn.normalization.BatchNorm`.
-
-        .. code-block:: python
-
-            model.train(False)  # turns off dropout
 
         Arguments:
             mode: Whether to turn training mode on or off.
+
+        Example:
+            >>> model.train(False)  # turns off dropout
         """
 
-        leaves = jtu.tree_leaves(self.__dict__, is_leaf=is_module)
+        leaves = jtu.tree_leaves(vars(self), is_leaf=is_module)
 
         for leaf in leaves:
             if is_module(leaf):
@@ -276,15 +153,146 @@ class Module(Auto):
         if hasattr(self, 'training'):
             self.training = mode
 
+    def pure(self, *roles: type) -> Tuple[ModuleDef, Dict[str, Array]]:
+        r"""Splits the functional definition of the module from its state.
 
-class Buffer(Auto):
-    r"""Container for non-optimizable arrays.
+        The state is represented by a path-array mapping split into different
+        collections depending on the role (:class:`Parameter`, :class:`Statistic`, ...)
+        of arrays. One collection is returned for each provided role plus an additional
+        collection for arrays that do not fit any role.
 
-    All arrays that do not require gradient updates in a module, such as constants or
-    running statistics should be leaves of a :class:`Buffer` instance.
+        See also:
+            :class:`ModuleDef`
+
+        Arguments:
+            roles: A set of :class:`Variable` subclasses.
+
+        Returns:
+            The module definition and state collection(s).
+
+        Examples:
+            >>> modef, state = model.pure()
+            >>> clone = modef(state)
+
+            >>> modef, params, others = model.pure(nn.Parameter)
+            >>> params, opt_state = optimizer.update(grads, opt_state, params)
+            >>> model = modef(params, others)
+        """
+
+        assert all(issubclass(role, Variable) for role in roles)
+
+        state = [{} for _ in roles]
+        state.append({})
+
+        def is_leaf(x):
+            return any(isinstance(x, role) for role in roles)
+
+        leaves = jtu.tree_leaves_with_path(tree=self, is_leaf=is_leaf)
+
+        for path, leaf in leaves:
+            key = jtu.keystr(path)
+
+            for i, role in enumerate(roles):
+                if isinstance(leaf, role):
+                    state[i][key] = leaf.value
+                    break
+            else:
+                state[-1][key] = leaf
+
+        return ModuleDef(self), *state
+
+
+class ModuleDef(Static):
+    r"""Abstraction for the static definition of a module.
+
+    See also:
+        :meth:`Module.pure`
 
     Arguments:
-        kwargs: A name-value mapping.
+        module: A module instance.
+    """
+
+    def __init__(self, module: Module):
+        self.value = jtu.tree_structure(module)
+
+    def __call__(self, *state: Dict[str, Array]) -> Module:
+        r"""
+        Arguments:
+            state: A set of state collections.
+
+        Returns:
+            A new instance of the module.
+        """
+
+        state = {
+            key: leaf
+            for collection in state
+            for key, leaf in collection.items()
+        }
+
+        missing = []
+
+        def f(path, leaf):
+            key = jtu.keystr(path)
+
+            if key in state:
+                leaf = state.pop(key)
+            else:
+                missing.append(key)
+
+            return leaf
+
+        leaves = [object()] * self.value.num_leaves
+        module = jtu.tree_unflatten(self.value, leaves)
+        module = jtu.tree_map_with_path(f=f, tree=module)
+
+        if missing:
+            keys = ', '.join(f'"{key}"' for key in missing)
+
+            raise RuntimeError(f"Missing key(s) in state: {keys}.")
+
+        if state:
+            keys = ', '.join(f'"{key}"' for key in state)
+
+            raise RuntimeError(f"Unexpected key(s) in state: {keys}.")
+
+        return module
+
+
+class Variable(PyArray):
+    r"""Wrapper to indicate variable arrays.
+
+    Wrapping arrays in :class:`Variable` subclasses allows to split the state of modules
+    into sub-collections.
+
+    Arguments:
+        value: An array value.
+    """
+
+    pass
+
+
+class Parameter(Variable):
+    r"""Wrapper to indicate optimizable arrays.
+
+    All arrays that require gradient updates in a :class:`Module` should be wrapped in a
+    :class:`Parameter` instance.
+
+    Arguments:
+        value: An array value.
+    """
+
+    pass
+
+
+class Statistic(Variable):
+    r"""Wrapper to indicate statistic arrays.
+
+    See also:
+        :class:`inox.nn.normalization.BatchNorm`
+
+    Arguments:
+        value: An array value.
     """
 
     pass
