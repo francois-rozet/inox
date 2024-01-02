@@ -11,7 +11,6 @@ import math
 import numpy as np
 
 from jax import Array
-from jax.random import KeyArray
 from typing import *
 
 from .module import Module
@@ -106,7 +105,7 @@ class S4(SISO):
         >>> y = ssm(u)
     """
 
-    def __init__(self, key: KeyArray, hid_features: int):
+    def __init__(self, key: Array, hid_features: int):
         keys = jax.random.split(key, 3)
 
         A, P = S4.DPLR_HiPPO(hid_features)

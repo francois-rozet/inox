@@ -249,12 +249,12 @@ class ModuleDef(Static):
         if missing:
             keys = ', '.join(f'"{key}"' for key in missing)
 
-            raise RuntimeError(f"Missing key(s) in state: {keys}.")
+            raise KeyError(f"Missing key(s) in state: {keys}.")
 
         if state:
             keys = ', '.join(f'"{key}"' for key in state)
 
-            raise RuntimeError(f"Unexpected key(s) in state: {keys}.")
+            raise KeyError(f"Unexpected key(s) in state: {keys}.")
 
         return module
 

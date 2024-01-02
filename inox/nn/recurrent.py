@@ -13,7 +13,6 @@ import jax
 import jax.numpy as jnp
 
 from jax import Array
-from jax.random import KeyArray
 from typing import *
 
 from .linear import Linear
@@ -107,7 +106,7 @@ class GRUCell(Cell):
 
     def __init__(
         self,
-        key: KeyArray,
+        key: Array,
         in_features: int,
         hid_features: int,
         bias: bool = True,
@@ -167,7 +166,7 @@ class BRCell(Module):
 
     def __init__(
         self,
-        key: KeyArray,
+        key: Array,
         in_features: int,
         hid_features: int,
         bias: bool = True,
@@ -239,7 +238,7 @@ class MGUCell(Module):
 
     def __init__(
         self,
-        key: KeyArray,
+        key: Array,
         in_features: int,
         hid_features: int,
         bias: bool = True,
@@ -297,7 +296,7 @@ class LSTMCell(Cell):
 
     def __init__(
         self,
-        key: KeyArray,
+        key: Array,
         in_features: int,
         hid_features: int,
         bias: bool = True,

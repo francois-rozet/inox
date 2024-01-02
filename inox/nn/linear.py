@@ -10,7 +10,6 @@ import jax
 import math
 
 from jax import Array
-from jax.random import KeyArray
 from typing import *
 
 from .module import Module, Parameter
@@ -31,7 +30,7 @@ class Linear(Module):
 
     def __init__(
         self,
-        key: KeyArray,
+        key: Array,
         in_features: int,
         out_features: int,
         bias: bool = True,
@@ -99,7 +98,7 @@ class Conv(Module):
 
     def __init__(
         self,
-        key: KeyArray,
+        key: Array,
         in_channels: int,
         out_channels: int,
         kernel_size: Sequence[int],

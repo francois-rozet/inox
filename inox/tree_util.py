@@ -66,6 +66,8 @@ class PyArray(metaclass=PyTreeMeta):
         Array(2., dtype=float32)
     """
 
+    value: Array = None
+
     def __init__(self, value: Array):
         self.value = value
 

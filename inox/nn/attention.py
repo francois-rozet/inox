@@ -9,7 +9,6 @@ import math
 
 from einops import rearrange
 from jax import Array
-from jax.random import KeyArray
 from typing import *
 
 from .linear import Linear
@@ -67,6 +66,7 @@ class MultiheadAttention(Module):
         | https://arxiv.org/abs/1706.03762
 
     Arguments:
+        key: A PRNG key for initialization.
         heads: The number of attention heads.
         in_features: The number of input features :math:`C`.
         hid_features: The number of hidden features :math:`H` per head.
@@ -81,7 +81,7 @@ class MultiheadAttention(Module):
 
     def __init__(
         self,
-        key: KeyArray,
+        key: Array,
         heads: int,
         in_features: int,
         hid_features: int,
@@ -110,7 +110,7 @@ class MultiheadAttention(Module):
         xk: Array = None,
         xv: Array = None,
         mask: Array = None,
-        key: KeyArray = None,
+        key: Array = None,
     ) -> Array:
         r"""
         Arguments:

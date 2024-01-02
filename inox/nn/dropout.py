@@ -8,7 +8,6 @@ __all__ = [
 import jax
 
 from jax import Array
-from jax.random import KeyArray
 from typing import *
 
 from .module import Module
@@ -35,7 +34,7 @@ class Dropout(Module):
     def __init__(self, p: float):
         self.p = p
 
-    def __call__(self, x: Array, key: KeyArray) -> Array:
+    def __call__(self, x: Array, key: Array) -> Array:
         r"""
         Arguments:
             x: The input tensor :math:`x`, with shape :math:`(*)`.
@@ -66,7 +65,7 @@ class TrainingDropout(Dropout):
 
     training: bool = True
 
-    def __call__(self, x: Array, key: KeyArray = None) -> Array:
+    def __call__(self, x: Array, key: Array = None) -> Array:
         r"""
         Arguments:
             x: The input tensor :math:`x`, with shape :math:`(*)`.

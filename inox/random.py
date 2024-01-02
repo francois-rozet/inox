@@ -9,7 +9,7 @@ __all__ = [
 import jax
 
 from contextlib import contextmanager
-from jax.random import KeyArray
+from jax import Array
 from typing import *
 
 from .debug import same_trace
@@ -39,7 +39,7 @@ class PRNG(Namespace):
         Array([ 0.5694761 , -1.4582146 ,  0.2309113 , -0.03029377,  0.11095619], dtype=float32)
     """
 
-    def __init__(self, seed: Union[int, KeyArray], **kwargs):
+    def __init__(self, seed: Union[int, Array], **kwargs):
         if isinstance(seed, int):
             self.state = jax.random.PRNGKey(seed, **kwargs)
         else:
@@ -53,7 +53,7 @@ class PRNG(Namespace):
         else:
             return attr
 
-    def split(self, num: int = None) -> KeyArray:
+    def split(self, num: int = None) -> Array:
         r"""
         Arguments:
             num: The number of keys to generate.
