@@ -10,6 +10,7 @@ from jax import Array
 from typing import *
 
 from .module import Module
+from ..numpy import vectorize
 
 
 class Pad(Module):
@@ -47,18 +48,12 @@ class Pad(Module):
             where :math:`p_i` is the total padding of the :math:`i`-th spatial axis.
         """
 
-        batch = x.shape[:-self.ndim]
-
-        x = x.reshape(-1, *x.shape[-self.ndim:])
-        x = jax.numpy.pad(
-            array=x,
-            pad_width=((0, 0), *self.padding, (0, 0)),
+        return vectorize(jax.numpy.pad, ndims=self.ndim)(
+            x,
+            pad_width=(*self.padding, (0, 0)),
             mode=self.mode,
             constant_values=self.value,
         )
-        x = x.reshape(*batch, *x.shape[-self.ndim:])
-
-        return x
 
     @property
     def ndim(self) -> int:

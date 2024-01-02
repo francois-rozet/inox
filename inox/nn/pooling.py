@@ -13,6 +13,7 @@ from jax import Array
 from typing import *
 
 from .module import Module
+from ..numpy import vectorize
 
 
 class Pool(Module):
@@ -52,20 +53,14 @@ class Pool(Module):
             spatial axis.
         """
 
-        batch = x.shape[:-self.ndim]
-
-        x = x.reshape(-1, *x.shape[-self.ndim:])
-        x = jax.lax.reduce_window(
-            operand=x,
+        return vectorize(jax.lax.reduce_window, ndims=self.ndim)(
+            x,
             init_value=self.initial,
             computation=self.operator,
-            window_dimensions=(1, *self.window_size, 1),
-            window_strides=(1, *self.stride, 1),
-            padding=((0, 0), *self.padding, (0, 0)),
+            window_dimensions=(*self.window_size, 1),
+            window_strides=(*self.stride, 1),
+            padding=(*self.padding, (0, 0)),
         )
-        x = x.reshape(*batch, *x.shape[-self.ndim:])
-
-        return x
 
     @property
     def ndim(self) -> int:

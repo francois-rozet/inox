@@ -14,6 +14,7 @@ from jax.random import KeyArray
 from typing import *
 
 from .module import Module, Parameter
+from ..numpy import flatten, unflatten
 
 
 class Linear(Module):
@@ -168,7 +169,7 @@ class Conv(Module):
 
         batch = x.shape[:-self.ndim]
 
-        x = x.reshape(-1, *x.shape[-self.ndim:])
+        x = flatten(x, 0, -self.ndim)
         x = jax.lax.conv_general_dilated(
             lhs=x,
             rhs=self.kernel,
@@ -178,7 +179,7 @@ class Conv(Module):
             padding=self.padding,
             feature_group_count=self.groups,
         )
-        x = x.reshape(*batch, *x.shape[-self.ndim:])
+        x = unflatten(x, 0, batch)
 
         if self.bias is None:
             return x
@@ -240,7 +241,7 @@ class ConvTransposed(Conv):
 
         batch = x.shape[:-self.ndim]
 
-        x = x.reshape(-1, *x.shape[-self.ndim:])
+        x = flatten(x, 0, -self.ndim)
         x = jax.lax.conv_general_dilated(
             lhs=x,
             rhs=self.kernel,
@@ -251,7 +252,7 @@ class ConvTransposed(Conv):
             rhs_dilation=self.dilation,
             feature_group_count=self.groups,
         )
-        x = x.reshape(*batch, *x.shape[-self.ndim:])
+        x = unflatten(x, 0, batch)
 
         if self.bias is None:
             return x

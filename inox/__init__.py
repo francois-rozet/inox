@@ -4,6 +4,7 @@ __version__ = '0.2.0'
 
 from . import debug
 from . import nn
+from . import numpy
 from . import patch
 from . import random
 from . import tree_util

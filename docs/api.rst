@@ -9,5 +9,6 @@ API
 
    inox.debug
    inox.nn
+   inox.numpy
    inox.random
    inox.tree_util
