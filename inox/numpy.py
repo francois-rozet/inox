@@ -54,7 +54,7 @@ def unflatten(x: Array, axis: int, shape: Sequence[int]) -> Array:
         (2, 3, 5)
     """
 
-    return x.reshape(*x.shape[:axis], *shape, *x.shape[axis % x.ndim + 1:])
+    return x.reshape(*x.shape[:axis], *shape, *x.shape[axis % x.ndim + 1 :])
 
 
 def vectorize(f: Callable, ndims: Union[int, Sequence[int]]):
@@ -83,7 +83,7 @@ def vectorize(f: Callable, ndims: Union[int, Sequence[int]]):
         assert len(args) <= len(ndims)
         assert all(0 <= ndim <= arg.ndim for arg, ndim in zip(args, ndims))
 
-        shapes = [arg.shape[:arg.ndim - ndim] for arg, ndim in zip(args, ndims)]
+        shapes = [arg.shape[: arg.ndim - ndim] for arg, ndim in zip(args, ndims)]
         broadcast = jax.numpy.broadcast_shapes(*shapes)
         squeezed = []
 

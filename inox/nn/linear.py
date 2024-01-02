@@ -37,7 +37,7 @@ class Linear(Module):
         bias: bool = True,
     ):
         keys = jax.random.split(key, 2)
-        lim = 1 / in_features ** 0.5
+        lim = 1 / math.sqrt(in_features)
 
         self.weight = Parameter(
             jax.random.uniform(
@@ -121,7 +121,7 @@ class Conv(Module):
             padding = [(padding, padding)] * len(kernel_size)
 
         keys = jax.random.split(key, 2)
-        lim = 1 / (math.prod(kernel_size) * in_channels) ** 0.5
+        lim = 1 / math.sqrt(math.prod(kernel_size) * in_channels)
 
         self.kernel = Parameter(
             jax.random.uniform(
@@ -167,7 +167,7 @@ class Conv(Module):
             total padding of the :math:`i`-th spatial axis.
         """
 
-        batch = x.shape[:-self.ndim]
+        batch = x.shape[: -self.ndim]
 
         x = flatten(x, 0, -self.ndim)
         x = jax.lax.conv_general_dilated(
@@ -239,7 +239,7 @@ class ConvTransposed(Conv):
             total padding of the :math:`i`-th spatial axis.
         """
 
-        batch = x.shape[:-self.ndim]
+        batch = x.shape[: -self.ndim]
 
         x = flatten(x, 0, -self.ndim)
         x = jax.lax.conv_general_dilated(
