@@ -25,7 +25,7 @@ class Dropout(Module):
 
     References:
         | A Simple Way to Prevent Neural Networks from Overfitting (Srivastava et al., 2014)
-        | https://jmlr.org/papers/v15/srivastava14a
+        | https://jmlr.org/papers/v15/srivastava14a.html
 
     Arguments:
         p: The dropout rate :math:`p \in [0, 1]`.
