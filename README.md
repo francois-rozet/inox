@@ -64,3 +64,7 @@ grads = jax.grad(loss_fn)(network, X, Y)
 ```
 
 For more information, check out the documentation at [inox.readthedocs.io](https://inox.readthedocs.io).
+
+## Contributing
+
+If you have a question, an issue or would like to contribute, please read our [contributing guidelines](https://github.com/francois-rozet/inox/blob/master/CONTRIBUTING.md).
