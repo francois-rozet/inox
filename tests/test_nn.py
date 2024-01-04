@@ -12,10 +12,11 @@ from inox.nn import *
 
 def test_Module():
     module = Module(
-        a=jax.numpy.zeros(()),
+        a=0.0,
         b=Parameter(jax.numpy.ones(1)),
-        c=[True, Statistic(jax.numpy.arange(3))],
-        d='four',
+        c=[jax.numpy.arange(2), 'three'],
+        d=False,
+        e=Module(f=jax.numpy.zeros(5), h=range(6)),
     )
 
     # Flatten
@@ -36,7 +37,7 @@ def test_Module():
 
     modef(state)
 
-    # Pure split
+    # Pure filters
     modef, params, others = module.pure(Parameter)
 
     assert all(isinstance(leaf, Array) for leaf in params.values())

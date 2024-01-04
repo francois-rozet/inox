@@ -11,7 +11,7 @@ import jax.numpy as jnp
 from jax import Array
 from typing import *
 
-from .module import Module, Statistic
+from .module import Module
 from ..debug import same_trace
 
 
@@ -50,8 +50,8 @@ class BatchNorm(Module):
         self.epsilon = epsilon
         self.momentum = momentum
 
-        self.mean = Statistic(jnp.zeros(channels))
-        self.var = Statistic(jnp.ones(channels))
+        self.running_mean = jnp.zeros(channels)
+        self.running_var = jnp.ones(channels)
 
     def __call__(self, x: Array) -> Array:
         r"""
@@ -67,11 +67,11 @@ class BatchNorm(Module):
             mean = jnp.mean(y, axis=0)
             var = jnp.var(y, axis=0)
 
-            self.mean.value = self.ema(self.mean, jax.lax.stop_gradient(mean))
-            self.var.value = self.ema(self.var, jax.lax.stop_gradient(var))
+            self.running_mean = self.ema(self.running_mean, jax.lax.stop_gradient(mean))
+            self.running_var = self.ema(self.running_var, jax.lax.stop_gradient(var))
         else:
-            mean = self.mean
-            var = self.var
+            mean = self.running_mean
+            var = self.running_var
 
         return (x - mean) / jnp.sqrt(var + self.epsilon)
 

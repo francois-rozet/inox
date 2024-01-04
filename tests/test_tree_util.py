@@ -10,45 +10,6 @@ from typing import *
 from inox.tree_util import *
 
 
-@pytest.mark.parametrize('nested', [False, True])
-def test_PyArray(nested: bool):
-    key = jax.random.key(0)
-    x = jax.random.normal(key, (2, 3))
-
-    if nested:
-        y = PyArray(PyArray(x))
-    else:
-        y = PyArray(x)
-
-    assert x.shape == y.shape
-    assert x.dtype == y.dtype
-    assert jax.numpy.allclose(x, y)
-
-    # Operations
-    z = x + y
-    z = y * y
-    z = jax.numpy.mean(y)
-
-    # Flatten
-    leaves, treedef = jax.tree_util.tree_flatten(y)
-
-    assert all(isinstance(leaf, Array) for leaf in leaves)
-    assert isinstance(treedef, Hashable)
-
-    z = jax.tree_util.tree_unflatten(treedef, leaves)
-
-    assert jax.numpy.allclose(x, z)
-
-    # Pickle
-    data = pickle.dumps(y)
-    z = pickle.loads(data)
-
-    assert jax.numpy.allclose(x, z)
-
-    # Print
-    assert repr(y)
-
-
 def test_Namespace():
     x = Namespace(a=1, b='2')
 
@@ -118,7 +79,8 @@ def test_Auto():
     x = Auto(
         a=jax.numpy.ones(()),
         b=2,
-        c=[True, jax.numpy.arange(4)],
+        c=[jax.numpy.arange(3), False],
+        d=Auto(e='five', f=jax.numpy.zeros(6)),
     )
 
     # Flatten

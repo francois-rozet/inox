@@ -69,9 +69,9 @@ class Linear(Module):
         """
 
         if self.bias is None:
-            return x @ self.weight
+            return x @ self.weight()
         else:
-            return x @ self.weight + self.bias
+            return x @ self.weight() + self.bias()
 
 
 class Conv(Module):
@@ -171,7 +171,7 @@ class Conv(Module):
         x = flatten(x, 0, -self.ndim)
         x = jax.lax.conv_general_dilated(
             lhs=x,
-            rhs=self.kernel,
+            rhs=self.kernel(),
             dimension_numbers=self.dimensions,
             window_strides=self.stride,
             rhs_dilation=self.dilation,
@@ -183,7 +183,7 @@ class Conv(Module):
         if self.bias is None:
             return x
         else:
-            return x + self.bias
+            return x + self.bias()
 
     @property
     def ndim(self) -> int:
@@ -243,7 +243,7 @@ class ConvTransposed(Conv):
         x = flatten(x, 0, -self.ndim)
         x = jax.lax.conv_general_dilated(
             lhs=x,
-            rhs=self.kernel,
+            rhs=self.kernel(),
             dimension_numbers=self.dimensions,
             window_strides=[1] * (self.ndim - 1),
             padding=self.transposed_padding,
@@ -256,7 +256,7 @@ class ConvTransposed(Conv):
         if self.bias is None:
             return x
         else:
-            return x + self.bias
+            return x + self.bias()
 
     @property
     def transposed_padding(self) -> Sequence[Tuple[int, int]]:

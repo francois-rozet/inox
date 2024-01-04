@@ -5,9 +5,7 @@ from __future__ import annotations
 __all__ = [
     'Module',
     'ModuleDef',
-    'Variable',
     'Parameter',
-    'Statistic',
 ]
 
 import jax
@@ -16,15 +14,11 @@ import jax.tree_util as jtu
 from jax import Array
 from typing import *
 
-from ..tree_util import PyArray, Static, Auto
+from ..tree_util import Static, Auto, tree_repr
 
 
 def is_module(x: Any) -> bool:
     return isinstance(x, Module)
-
-
-def is_parameter(x: Any) -> bool:
-    return isinstance(x, Parameter)
 
 
 class Module(Auto):
@@ -50,7 +44,7 @@ class Module(Auto):
                 self.bias = Parameter(jrd.normal(keys[1], (out_features,)))
 
             def __call__(self, x):
-                return x @ self.weight + self.bias
+                return x @ self.weight() + self.bias()
 
         class Classifier(nn.Module):
             def __init__(self, key, in_features, num_classes):
@@ -76,9 +70,10 @@ class Module(Auto):
         key = jax.random.key(0)
         model = Classifier(key)
 
-    Modules automatically detect non-array leaves and consider them as static. This
-    results in module instances compatible with native JAX transformations
-    (:func:`jax.jit`, :func:`jax.vmap`, :func:`jax.grad`, ...) out of the box.
+    Modules automatically detect non-array leaves and consider them as static (part of
+    the tree structure). This results in module instances compatible with native JAX
+    transformations (:func:`jax.jit`, :func:`jax.vmap`, :func:`jax.grad`, ...) out of
+    the box.
 
     .. code-block:: python
 
@@ -144,28 +139,30 @@ class Module(Auto):
             >>> model.train(False)  # turns off dropout
         """
 
-        leaves = jtu.tree_leaves(vars(self), is_leaf=is_module)
-
-        for leaf in leaves:
+        for leaf in jtu.tree_leaves(vars(self), is_module):
             if is_module(leaf):
                 leaf.train(mode)
 
         if hasattr(self, 'training'):
             self.training = mode
 
-    def pure(self, *roles: type) -> Tuple[ModuleDef, Dict[str, Array]]:
+    def pure(
+        self,
+        *filters: Union[type, Callable[[Any], bool]],
+    ) -> Tuple[ModuleDef, Dict[str, Array]]:
         r"""Splits the functional definition of the module from its state.
 
-        The state is represented by a path-array mapping split into different
-        collections depending on the role (:class:`Parameter`, :class:`Statistic`, ...)
-        of arrays. One collection is returned for each provided role plus an additional
-        collection for arrays that do not fit any role.
+        The state is represented by a path-array mapping split into several collections.
+        Each collection contains the leaves of the subset of nodes satisfying a
+        filtering constraint. The last collection is dedicated to leaves that do not
+        satisfy any constraint.
 
         See also:
             :class:`ModuleDef`
 
         Arguments:
-            roles: A set of :class:`Variable` subclasses.
+            filters: A set of filtering constraints. Types are transformed into
+                :py:`isinstance` constraints.
 
         Returns:
             The module definition and state collection(s).
@@ -177,27 +174,30 @@ class Module(Auto):
             >>> modef, params, others = model.pure(nn.Parameter)
             >>> params, opt_state = optimizer.update(grads, opt_state, params)
             >>> model = modef(params, others)
+
+            >>> model.path[2].layer.frozen = True
+            >>> filtr = lambda x: getattr(x, 'frozen', False)
+            >>> modef, frozen, others = model.pure(filtr)
         """
 
-        assert all(issubclass(role, Variable) for role in roles)
-
-        state = [{} for _ in roles]
-        state.append({})
+        state = [{} for _ in filters] + [{}]
+        filters = [
+            (lambda x: isinstance(x, f)) if isinstance(f, type) else f
+            for f in filters
+        ]
 
         def is_leaf(x):
-            return any(isinstance(x, role) for role in roles)
+            return any(filtr(x) for filtr in filters)
 
-        leaves = jtu.tree_leaves_with_path(tree=self, is_leaf=is_leaf)
-
-        for path, leaf in leaves:
-            key = jtu.keystr(path)
-
-            for i, role in enumerate(roles):
-                if isinstance(leaf, role):
-                    state[i][key] = leaf.value
+        for path, leaf in jtu.tree_leaves_with_path(self, is_leaf):
+            for i, filtr in enumerate(filters):
+                if filtr(leaf):
                     break
             else:
-                state[-1][key] = leaf
+                i = -1
+
+            for subpath, subleaf in jtu.tree_leaves_with_path(leaf):
+                state[i][jtu.keystr(path + subpath)] = subleaf
 
         return ModuleDef(self), *state
 
@@ -224,13 +224,12 @@ class ModuleDef(Static):
             A new instance of the module.
         """
 
+        missing = []
         state = {
             key: leaf
             for collection in state
             for key, leaf in collection.items()
         }
-
-        missing = []
 
         def f(path, leaf):
             key = jtu.keystr(path)
@@ -259,40 +258,37 @@ class ModuleDef(Static):
         return module
 
 
-class Variable(PyArray):
-    r"""Wrapper to indicate variable arrays.
-
-    Wrapping arrays in :class:`Variable` subclasses allows to split the state of modules
-    into sub-collections.
-
-    Arguments:
-        value: An array value.
-    """
-
-    pass
-
-
-class Parameter(Variable):
+class Parameter(Auto):
     r"""Wrapper to indicate optimizable arrays.
 
     All arrays that require gradient updates in a :class:`Module` should be wrapped in a
     :class:`Parameter` instance.
 
     Arguments:
-        value: An array value.
+        value: An array.
+
+    Example:
+        >>> weight = Parameter(jax.numpy.ones((3, 5)))
+        >>> bias = Parameter(jax.numpy.zeros(5))
+        >>> def linear(x):
+        ...     return x @ weight() + bias()
     """
 
-    pass
+    value: Array = None
 
+    def __init__(self, value: Array):
+        self.value = value
 
-class Statistic(Variable):
-    r"""Wrapper to indicate statistic arrays.
+    def __call__(self) -> Array:
+        r"""
+        Returns:
+            The wrapped array.
+        """
 
-    See also:
-        :class:`inox.nn.normalization.BatchNorm`
+        return self.value
 
-    Arguments:
-        value: An array value.
-    """
+    def __getattr__(self, attr: str) -> Any:
+        return getattr(self.value, attr)
 
-    pass
+    def tree_repr(self, **kwargs) -> str:
+        return tree_repr(self.value, **kwargs)

@@ -29,12 +29,6 @@ def same_trace(a: Array, b: Array, ignore_primal: bool = False) -> bool:
         Array(False, dtype=bool)
     """
 
-    if hasattr(a, '__jax_array__'):
-        a = a.__jax_array__()
-
-    if hasattr(b, '__jax_array__'):
-        b = b.__jax_array__()
-
     if ignore_primal:
         while hasattr(a, 'primal'):
             a = a.primal
