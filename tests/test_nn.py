@@ -1,56 +1,56 @@
 r"""Tests for the inox.nn module."""
 
 import jax
+import jax.numpy as jnp
 import pickle
 import pytest
 
 from jax import Array
 from typing import *
 
+from inox import api
 from inox.nn import *
 
 
 def test_Module():
     module = Module(
         a=0.0,
-        b=Parameter(jax.numpy.ones(1)),
-        c=[jax.numpy.arange(2), 'three'],
+        b=Parameter(jnp.ones(1)),
+        c=[jnp.arange(2), 'three'],
         d=False,
-        e=Module(f=jax.numpy.zeros(5), h=range(6)),
+        e=Module(f=jnp.zeros(5), g=range(6)),
     )
 
     # Flatten
     leaves, treedef = jax.tree_util.tree_flatten(module)
 
-    assert all(isinstance(leaf, Array) for leaf in leaves)
+    assert not all(isinstance(leaf, Array) for leaf in leaves)
     assert isinstance(treedef, Hashable)
 
     jax.tree_util.tree_unflatten(treedef, leaves)
 
-    # Pure
-    modef, state = module.pure()
+    # Partition
+    static, arrays = module.partition()
 
-    print(state)
+    assert all(isinstance(leaf, Array) for leaf in arrays.values())
+    assert isinstance(static, Hashable)
 
-    assert all(isinstance(leaf, Array) for leaf in state.values())
-    assert isinstance(modef, Hashable)
+    static(arrays)
 
-    modef(state)
-
-    # Pure filters
-    modef, params, others = module.pure(Parameter)
+    ## filters
+    static, params, others = module.partition(Parameter)
 
     assert all(isinstance(leaf, Array) for leaf in params.values())
     assert all(isinstance(leaf, Array) for leaf in others.values())
-    assert isinstance(modef, Hashable)
+    assert isinstance(static, Hashable)
 
-    modef(params, others)
-
-    with pytest.raises(KeyError):
-        modef(params)
+    static(params, others)
 
     with pytest.raises(KeyError):
-        modef(params, others, {'e': None})
+        static(params)
+
+    with pytest.raises(KeyError):
+        static(params, others, {'none': None})
 
     # Pickle
     data = pickle.dumps(module)
@@ -63,7 +63,7 @@ def test_Module():
 def test_MLP():
     key = jax.random.key(0)
     x = jax.random.normal(key, (1024, 3))
-    y = jax.numpy.linalg.norm(x, axis=-1, keepdims=True)
+    y = jnp.linalg.norm(x, axis=-1, keepdims=True)
 
     class MLP(Module):
         def __init__(self, key):
@@ -85,11 +85,11 @@ def test_MLP():
     z = jax.vmap(model)(x)
 
     # JIT
-    @jax.jit
+    @api.jit
     def loss(model):
-        return jax.numpy.mean((model(x) - y) ** 2)
+        return jnp.mean((model(x) - y) ** 2)
 
-    l = loss(model)
+    loss(model)
 
     # Gradients
-    grads = jax.grad(loss)(model)
+    grads = api.grad(loss)(model)

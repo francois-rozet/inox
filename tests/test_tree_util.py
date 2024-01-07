@@ -1,6 +1,8 @@
 r"""Tests for the inox.tree_util module."""
 
 import jax
+import jax.numpy as jnp
+import jax.tree_util as jtu
 import pickle
 import pytest
 
@@ -8,6 +10,18 @@ from jax import Array
 from typing import *
 
 from inox.tree_util import *
+
+
+def tree_eq(x, y):
+    def eq(a, b):
+        if isinstance(a, Array) and isinstance(b, Array):
+            return jnp.allclose(a, b)
+        elif isinstance(a, Array) or isinstance(b, Array):
+            return False
+        else:
+            return a == b
+
+    return jtu.tree_all(jtu.tree_map(eq, x, y))
 
 
 def test_Namespace():
@@ -32,15 +46,19 @@ def test_Namespace():
     assert not hasattr(x, 'b')
 
     # Flatten
-    leaves, treedef = jax.tree_util.tree_flatten(x)
+    leaves, treedef = jtu.tree_flatten(x)
 
     assert isinstance(treedef, Hashable)
 
-    jax.tree_util.tree_unflatten(treedef, leaves)
+    y = jtu.tree_unflatten(treedef, leaves)
+
+    assert tree_eq(x, y)
 
     # Pickle
     data = pickle.dumps(x)
-    pickle.loads(data)
+    y = pickle.loads(data)
+
+    assert tree_eq(x, y)
 
     # Print
     assert repr(x)
@@ -48,52 +66,89 @@ def test_Namespace():
 
 @pytest.mark.parametrize('nested', [False, True])
 def test_Static(nested: bool):
-    x = 'hashable'
-
     if nested:
-        y = Static(Static(x))
+        x = Static(Static('hashable'))
     else:
-        y = Static(x)
+        x = Static('hashable')
 
     # Flatten
-    leaves, treedef = jax.tree_util.tree_flatten(y)
+    leaves, treedef = jtu.tree_flatten(x)
 
     assert not leaves
     assert isinstance(treedef, Hashable)
 
-    z = jax.tree_util.tree_unflatten(treedef, leaves)
+    y = jtu.tree_unflatten(treedef, leaves)
 
-    assert hash(y) == hash(z)
+    assert x == y
 
     # Pickle
-    data = pickle.dumps(y)
-    z = pickle.loads(data)
+    data = pickle.dumps(x)
+    y = pickle.loads(data)
 
-    assert hash(y) == hash(z)
+    assert x == y
 
     # Print
-    assert repr(y)
+    assert repr(x)
 
 
-def test_Auto():
-    x = Auto(
-        a=jax.numpy.ones(()),
+def test_tree_mask():
+    x = Namespace(
+        a=jnp.ones(1),
         b=2,
-        c=[jax.numpy.arange(3), False],
-        d=Auto(e='five', f=jax.numpy.zeros(6)),
+        c=[jnp.arange(3), False],
+        d=Namespace(e='five', f=jnp.eye(6)),
     )
 
-    # Flatten
-    leaves, treedef = jax.tree_util.tree_flatten(x)
+    # tree_mask
+    y = tree_mask(x)
+
+    leaves, treedef = jtu.tree_flatten(y)
 
     assert all(isinstance(leaf, Array) for leaf in leaves)
     assert isinstance(treedef, Hashable)
 
-    jax.tree_util.tree_unflatten(treedef, leaves)
+    # tree_unmask
+    z = tree_unmask(y)
 
-    # Pickle
-    data = pickle.dumps(x)
-    pickle.loads(data)
+    leaves, treedef = jtu.tree_flatten(z)
 
-    # Print
-    assert repr(x)
+    assert not all(isinstance(leaf, Array) for leaf in leaves)
+    assert isinstance(treedef, Hashable)
+
+    assert tree_eq(x, z)
+
+
+def test_tree_partition():
+    x = Namespace(
+        a=jnp.ones(1),
+        b=2,
+        c=[jnp.arange(3), False],
+        d=Namespace(e='five', f=jnp.eye(6)),
+    )
+
+    # tree_partition
+    treedef_a, leaves = tree_partition(x)
+
+    assert not all(isinstance(leaf, Array) for leaf in leaves.values())
+    assert isinstance(treedef_a, Hashable)
+
+    treedef_b, arrays, others = tree_partition(x, Array)
+
+    assert all(isinstance(leaf, Array) for leaf in arrays.values())
+    assert not any(isinstance(leaf, Array) for leaf in others.values())
+    assert isinstance(treedef_b, Hashable)
+
+    assert treedef_a == treedef_b
+
+    # tree_combine
+    y = tree_combine(treedef_a, leaves)
+    z = tree_combine(treedef_b, arrays, others)
+
+    assert tree_eq(x, y)
+    assert tree_eq(x, z)
+
+    with pytest.raises(KeyError):
+        tree_combine(treedef_a, {})
+
+    with pytest.raises(KeyError):
+        tree_combine(treedef_a, leaves, {'none': None})

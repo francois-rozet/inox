@@ -3,7 +3,10 @@ r"""Extended utilities for tree-like data structures"""
 __all__ = [
     'Namespace',
     'Static',
-    'Auto',
+    'tree_mask',
+    'tree_unmask',
+    'tree_partition',
+    'tree_combine',
     'tree_repr',
 ]
 
@@ -23,14 +26,6 @@ PyTreeDef = TypeVar('PyTreeDef')
 
 def is_array(x: Any) -> bool:
     return isinstance(x, np.ndarray) or isinstance(x, Array)
-
-
-def is_static(x: Any) -> bool:
-    return isinstance(x, Static)
-
-
-def is_auto(x: Any) -> bool:
-    return isinstance(x, Auto)
 
 
 class PyTreeMeta(type):
@@ -54,18 +49,18 @@ class Namespace(metaclass=PyTreeMeta):
         kwargs: A name-value mapping.
 
     Example:
-        >>> ns = Namespace(a=1, b='2'); ns
+        >>> tree = Namespace(a=1, b='2'); tree
         Namespace(
           a = 1,
           b = '2'
         )
-        >>> ns.c = [3, False]; ns
+        >>> tree.c = [3, False]; tree
         Namespace(
           a = 1,
           b = '2',
           c = [3, False]
         )
-        >>> jax.tree_util.tree_leaves(ns)
+        >>> jax.tree_util.tree_leaves(tree)
         [1, '2', 3, False]
     """
 
@@ -111,18 +106,18 @@ class Namespace(metaclass=PyTreeMeta):
 
 
 class Static(metaclass=PyTreeMeta):
-    r"""Wraps an hashable value as a leafless PyTree.
+    r"""Wraps an hashable value as a leafless tree.
 
     Arguments:
         value: An hashable value to wrap.
 
     Example:
-        >>> x = Static((0, 'one', None))
-        >>> x.value
+        >>> tree = Static((0, 'one', None))
+        >>> tree.value
         (0, 'one', None)
-        >>> jax.tree_util.tree_leaves(x)
+        >>> jax.tree_util.tree_leaves(tree)
         []
-        >>> jax.tree_util.tree_structure(x)
+        >>> jax.tree_util.tree_structure(tree)
         PyTreeDef(CustomNode(Static[(0, 'one', None)], []))
     """
 
@@ -131,6 +126,9 @@ class Static(metaclass=PyTreeMeta):
             warn(f"'{type(value).__name__}' object is not hashable.")
 
         self.value = value
+
+    def __eq__(self, other: Any) -> bool:
+        return type(self) is type(other) and self.value == other.value
 
     def __hash__(self) -> int:
         return hash((type(self), self.value))
@@ -144,6 +142,9 @@ class Static(metaclass=PyTreeMeta):
     def tree_flatten(self):
         return (), self.value
 
+    def tree_flatten_with_keys(self):
+        return self.tree_flatten()
+
     @classmethod
     def tree_unflatten(cls, value, _):
         self = object.__new__(cls)
@@ -152,57 +153,194 @@ class Static(metaclass=PyTreeMeta):
         return self
 
 
-class Auto(Namespace):
-    r"""Subclass of :class:`Namespace` that automatically detects non-array leaves
-    and considers them as static.
+def tree_mask(
+    tree: PyTree,
+    is_static: Callable[[Any], bool] = None,
+) -> PyTree:
+    r"""Masks the static leaves of a tree.
 
-    Important:
-        :py:`object()` leaves are never considered static.
+    See also:
+        :func:`tree_unmask`
 
     Arguments:
-        kwargs: A name-value mapping.
+        tree: The tree to mask.
+        is_static: A predicate for what to consider static. If :py:`None`,
+            all non-array leaves are considered static.
+
+    Returns:
+        The masked tree.
 
     Example:
-        >>> auto = Auto(a=1, b=jnp.array(2.0)); auto
-        Auto(
-          a = 1,
-          b = float32[]
-        )
-        >>> auto.c = ['3', jnp.arange(4)]; auto
-        Auto(
-          a = 1,
-          b = float32[],
-          c = ['3', int32[4]]
-        )
-        >>> jax.tree_util.tree_leaves(auto)  # only arrays
-        [Array(2., dtype=float32, weak_type=True), Array([0, 1, 2, 3], dtype=int32)]
+        >>> tree = [1, jax.numpy.arange(2), 'three']
+        >>> jax.tree_util.tree_leaves(tree)
+        [1, Array([0, 1], dtype=int32), 'three']
+        >>> tree = tree_mask(tree); tree
+        [Static(1), Array([0, 1], dtype=int32), Static('three')]
+        >>> jax.tree_util.tree_leaves(tree)
+        [Array([0, 1], dtype=int32)]
     """
 
-    def tree_flatten(self):
-        values, names = super().tree_flatten()
+    if is_static is None:
+        is_static = lambda x: not is_array(x)
 
-        values = jtu.tree_map(
-            f=lambda x: x if type(x) is object or is_array(x) or is_auto(x) else Static(x),
-            tree=values,
-            is_leaf=is_auto,
+    return jtu.tree_map(
+        f=lambda x: Static(x) if is_static(x) else x,
+        tree=tree,
+    )
+
+
+def tree_unmask(tree: PyTree) -> PyTree:
+    r"""Unmasks the static leaves of a masked tree.
+
+    See also:
+        :func:`tree_mask`
+
+    Arguments:
+        tree: The masked tree to unmask.
+
+    Returns:
+        The unmasked tree.
+
+    Example:
+        >>> tree = [Static(1), jax.numpy.arange(2), Static('three')]
+        >>> tree_unmask(tree)
+        [1, Array([0, 1], dtype=int32), 'three']
+    """
+
+    is_static = lambda x: isinstance(x, Static)
+
+    return jtu.tree_map(
+        f=lambda x: x.value if is_static(x) else x,
+        tree=tree,
+        is_leaf=is_static,
+    )
+
+
+def tree_partition(
+    tree: PyTree,
+    *filters: Union[type, Callable[[Any], bool]],
+    is_leaf: Callable[[Any], bool] = None,
+) -> Tuple[PyTreeDef, Dict[str, Any]]:
+    r"""Flattens a tree and partitions the leaves.
+
+    The leaves are partitioned into a set of path-leaf mappings. Each mapping contains
+    the leaves of the subset of nodes satisfying the corresponding filtering constraint.
+    The last mapping is dedicated to leaves that do not satisfy any constraint.
+
+    See also:
+        :func:`tree_combine`
+
+    Arguments:
+        tree: The tree to flatten.
+        filters: A set of filtering constraints. Types are transformed into
+            :py:`isinstance` constraints.
+        is_leaf: A predicate for what to consider as a leaf.
+
+    Returns:
+        The tree definition and leaf partitions.
+
+    Example:
+        >>> tree = Namespace(a=1, b=jax.numpy.arange(2), c=['three', False])
+        >>> treedef, leaves = tree_partition(tree)
+        >>> leaves
+        {'.a': 1, '.b': Array([0, 1], dtype=int32), '.c[0]': 'three', '.c[1]': False}
+        >>> treedef, arrays, others = tree_partition(tree, jax.Array)
+        >>> arrays
+        {'.b': Array([0, 1], dtype=int32)}
+        >>> others
+        {'.a': 1, '.c[0]': 'three', '.c[1]': False}
+    """
+
+    treedef = jtu.tree_structure(tree, is_leaf)
+    leaves = [{} for _ in filters] + [{}]
+
+    filters = [
+        (lambda x: isinstance(x, filtr))
+        if isinstance(filtr, type) else filtr
+        for filtr in filters
+    ]
+
+    if is_leaf is None:
+        is_node = lambda x: any(filtr(x) for filtr in filters)
+    else:
+        is_node = lambda x: any(filtr(x) for filtr in filters) or is_leaf(x)
+
+    for path, node in jtu.tree_leaves_with_path(tree, is_node):
+        for i, filtr in enumerate(filters):
+            if filtr(node):
+                break
+        else:
+            i = -1
+
+        for subpath, leaf in jtu.tree_leaves_with_path(node, is_leaf):
+            leaves[i][jtu.keystr(path + subpath)] = leaf
+
+    return treedef, *leaves
+
+
+def tree_combine(
+    treedef: PyTreeDef,
+    *leaves: Dict[str, Any],
+) -> PyTree:
+    r"""Reconstructs a tree from the tree definition and leaf partitions.
+
+    See also:
+        :func:`tree_partition`
+
+    Arguments:
+        treedef: The tree definition.
+        leaves: The set of leaf partitions.
+
+    Returns:
+        The reconstructed tree.
+
+    Example:
+        >>> tree = Namespace(a=1, b=jax.numpy.arange(2), c=['three', False])
+        >>> treedef, arrays, others = tree_partition(tree, jax.Array)
+        >>> others = {key: str(leaf).upper() for key, leaf in others.items()}
+        >>> tree_combine(treedef, arrays, others)
+        Namespace(
+          a = '1',
+          b = int32[2],
+          c = ['THREE', 'FALSE']
         )
+    """
 
-        return values, names
+    missing = []
+    leaves = {
+        key: leaf
+        for partition in leaves
+        for key, leaf in partition.items()
+    }
 
-    @classmethod
-    def tree_unflatten(cls, names, values):
-        values = jtu.tree_map(
-            f=lambda x: x.value if is_static(x) else x,
-            tree=values,
-            is_leaf=lambda x: is_auto(x) or is_static(x),
-        )
+    def f(path, leaf):
+        key = jtu.keystr(path)
 
-        return super().tree_unflatten(names, values)
+        if key in leaves:
+            leaf = leaves.pop(key)
+        else:
+            missing.append(key)
+
+        return leaf
+
+    tree = jtu.tree_unflatten(treedef, [object()] * treedef.num_leaves)
+    tree = jtu.tree_map_with_path(f, tree)
+
+    if missing:
+        keys = ', '.join(f'"{key}"' for key in missing)
+
+        raise KeyError(f"Missing key(s) in leaves: {keys}.")
+
+    if leaves:
+        keys = ', '.join(f'"{key}"' for key in leaves)
+
+        raise KeyError(f"Unexpected key(s) in leaves: {keys}.")
+
+    return tree
 
 
 def tree_repr(
-    x: PyTree,
-    /,
+    tree: PyTree,
     linewidth: int = 88,
     typeonly: bool = True,
     **kwargs,
@@ -210,7 +348,7 @@ def tree_repr(
     r"""Creates a pretty representation of a tree.
 
     Arguments:
-        x: The tree to represent.
+        tree: The tree to represent.
         linewidth: The maximum line width before elements of tuples, lists and dicts
             are represented on separate lines.
         typeonly: Whether to represent the type of arrays instead of their elements.
@@ -235,27 +373,24 @@ def tree_repr(
         typeonly=typeonly,
     )
 
-    if hasattr(x, 'tree_repr'):
-        return x.tree_repr(**kwargs)
-    elif isinstance(x, tuple):
+    if hasattr(tree, 'tree_repr'):
+        return tree.tree_repr(**kwargs)
+    elif isinstance(tree, tuple):
         bra, ket = '(', ')'
-        lines = [tree_repr(y, **kwargs) for y in x]
-    elif isinstance(x, list):
+        lines = [tree_repr(x, **kwargs) for x in tree]
+    elif isinstance(tree, list):
         bra, ket = '[', ']'
-        lines = [tree_repr(y, **kwargs) for y in x]
-    elif isinstance(x, dict):
+        lines = [tree_repr(x, **kwargs) for x in tree]
+    elif isinstance(tree, dict):
         bra, ket = '{', '}'
         lines = [
             f'{tree_repr(key)}: {tree_repr(value)}'
-            for key, value in x.items()
+            for key, value in tree.items()
         ]
-    elif is_array(x):
-        if typeonly:
-            return f'{x.dtype}{list(x.shape)}'
-        else:
-            return repr(x)
+    elif is_array(tree) and typeonly:
+        return f'{tree.dtype}{list(tree.shape)}'
     else:
-        return repr(x).strip(' \n')
+        return repr(tree).strip(' \n')
 
     if any('\n' in line for line in lines):
         lines = ',\n'.join(lines)
