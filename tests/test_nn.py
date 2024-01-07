@@ -69,8 +69,8 @@ def test_MLP():
         def __init__(self, key):
             keys = jax.random.split(key)
 
-            self.l1 = Linear(keys[0], 3, 64)
-            self.l2 = Linear(keys[1], 64, 1)
+            self.l1 = Linear(3, 64, key=keys[0])
+            self.l2 = Linear(64, 1, key=keys[1])
             self.relu = ReLU()
 
         def __call__(self, x):

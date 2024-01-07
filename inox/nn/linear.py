@@ -14,6 +14,7 @@ from typing import *
 
 from .module import Module, Parameter
 from ..numpy import flatten, unflatten
+from ..random import get_rng
 
 
 class Linear(Module):
@@ -22,28 +23,33 @@ class Linear(Module):
     .. math:: y = W x + b
 
     Arguments:
-        key: A PRNG key for initialization.
         in_features: The number of input features :math:`C`.
         out_features: The number of output features :math:`C'`.
         bias: Whether the layer learns an additive bias :math:`b` or not.
+        key: A PRNG key for initialization. If :py:`None`,
+            :func:`inox.random.get_rng` is used instead.
     """
 
     def __init__(
         self,
-        key: Array,
         in_features: int,
         out_features: int,
         bias: bool = True,
+        key: Array = None,
     ):
-        keys = jax.random.split(key, 2)
-        lim = 1 / math.sqrt(in_features)
+        if key is None:
+            keys = get_rng().split(2)
+        else:
+            keys = jax.random.split(key, 2)
+
+        bound = 1 / math.sqrt(in_features)
 
         self.weight = Parameter(
             jax.random.uniform(
                 key=keys[0],
                 shape=(in_features, out_features),
-                minval=-lim,
-                maxval=lim,
+                minval=-bound,
+                maxval=bound,
             )
         )
 
@@ -52,8 +58,8 @@ class Linear(Module):
                 jax.random.uniform(
                     key=keys[1],
                     shape=(out_features,),
-                    minval=-lim,
-                    maxval=lim,
+                    minval=-bound,
+                    maxval=bound,
                 )
             )
         else:
@@ -84,7 +90,6 @@ class Conv(Module):
         | https://arxiv.org/abs/1603.07285
 
     Arguments:
-        key: A PRNG key for initialization.
         in_channels: The number of input channels :math:`C`.
         out_channels: The number of output channels :math:`C'`.
         kernel_size: The size of the kernel :math:`W` in each spatial axis.
@@ -94,11 +99,12 @@ class Conv(Module):
         padding: The padding applied to each end of each spatial axis.
         groups: The number of channel groups :math:`G`.
             Both :math:`C` and :math:`C'` must be divisible by :math:`G`.
+        key: A PRNG key for initialization. If :py:`None`,
+            :func:`inox.random.get_rng` is used instead.
     """
 
     def __init__(
         self,
-        key: Array,
         in_channels: int,
         out_channels: int,
         kernel_size: Sequence[int],
@@ -107,8 +113,12 @@ class Conv(Module):
         dilation: Union[int, Sequence[int]] = 1,
         padding: Union[int, Sequence[Tuple[int, int]]] = 0,
         groups: int = 1,
+        key: Array = None,
     ):
-        in_channels = in_channels // groups
+        if key is None:
+            keys = get_rng().split(2)
+        else:
+            keys = jax.random.split(key, 2)
 
         if isinstance(stride, int):
             stride = [stride] * len(kernel_size)
@@ -119,15 +129,15 @@ class Conv(Module):
         if isinstance(padding, int):
             padding = [(padding, padding)] * len(kernel_size)
 
-        keys = jax.random.split(key, 2)
-        lim = 1 / math.sqrt(math.prod(kernel_size) * in_channels)
+        in_channels = in_channels // groups
+        bound = 1 / math.sqrt(math.prod(kernel_size) * in_channels)
 
         self.kernel = Parameter(
             jax.random.uniform(
                 key=keys[0],
                 shape=(*kernel_size, in_channels, out_channels),
-                minval=-lim,
-                maxval=lim,
+                minval=-bound,
+                maxval=bound,
             )
         )
 
@@ -136,8 +146,8 @@ class Conv(Module):
                 jax.random.uniform(
                     key=keys[1],
                     shape=(out_channels,),
-                    minval=-lim,
-                    maxval=lim,
+                    minval=-bound,
+                    maxval=bound,
                 )
             )
         else:
@@ -210,7 +220,6 @@ class ConvTransposed(Conv):
         | https://arxiv.org/abs/1603.07285
 
     Arguments:
-        key: A PRNG key for initialization.
         in_channels: The number of input channels :math:`C`.
         out_channels: The number of output channels  :math:`C'`.
         kernel_size: The size of the kernel :math:`W` in each spatial axis.
@@ -220,6 +229,8 @@ class ConvTransposed(Conv):
         padding: The padding applied to each end of each spatial axis.
         groups: The number of channel groups :math:`G`.
             Both :math:`C` and :math:`C'` must be divisible by :math:`G`.
+        key: A PRNG key for initialization. If :py:`None`,
+            :func:`inox.random.get_rng` is used instead.
     """
 
     def __call__(self, x: Array) -> Array:

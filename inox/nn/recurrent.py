@@ -3,8 +3,6 @@ r"""Recurrent layers"""
 __all__ = [
     'Cell',
     'Recurrent',
-    'BRCell',
-    'MGUCell',
     'GRUCell',
     'LSTMCell',
 ]
@@ -17,6 +15,7 @@ from typing import *
 
 from .linear import Linear
 from .module import Module
+from ..random import get_rng
 
 
 class Cell(Module):
@@ -98,25 +97,28 @@ class GRUCell(Cell):
         | https://arxiv.org/abs/1406.1078
 
     Arguments:
-        key: A PRNG key for initialization.
         in_features: The number of input features :math:`C`.
         hid_features: The number of hidden features :math:`H`.
         bias: Whether the cell learns additive biases or not.
+        key: A PRNG key for initialization. If :py:`None`,
+            :func:`inox.random.get_rng` is used instead.
     """
 
     def __init__(
         self,
-        key: Array,
         in_features: int,
         hid_features: int,
         bias: bool = True,
+        key: Array = None,
     ):
-        keys = jax.random.split(key, 2)
+        if key is None:
+            keys = get_rng().split(2)
+        else:
+            keys = jax.random.split(key, 2)
 
-        self.lin_h = Linear(keys[0], hid_features, 3 * hid_features, bias)
-        self.lin_x = Linear(keys[1], in_features, 3 * hid_features, bias)
+        self.lin_h = Linear(hid_features, 3 * hid_features, bias, key=keys[0])
+        self.lin_x = Linear(in_features, 3 * hid_features, bias, key=keys[1])
 
-        self.in_features = in_features
         self.hid_features = hid_features
 
     def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
@@ -149,137 +151,6 @@ class GRUCell(Cell):
         return jnp.zeros(self.hid_features)
 
 
-class BRCell(Module):
-    r"""Creates a bistable recurrent cell (BRC).
-
-    References:
-        | A bio-inspired bistable recurrent cell allows for long-lasting memory (Vecoven et al., 2021)
-        | https://arxiv.org/abs/2006.05252
-
-    Arguments:
-        key: A PRNG key for initialization.
-        in_features: The number of input features :math:`C`.
-        hid_features: The number of hidden features :math:`H`.
-        bias: Whether the cell learns additive biases or not.
-        modulated: Whether to use neuromodulation or not.
-    """
-
-    def __init__(
-        self,
-        key: Array,
-        in_features: int,
-        hid_features: int,
-        bias: bool = True,
-        modulated: bool = True,
-    ):
-        keys = jax.random.split(key, 3)
-
-        self.modulated = modulated
-
-        self.lin_x = Linear(keys[0], in_features, 3 * hid_features, bias)
-
-        if self.modulated:
-            self.lin_h = Linear(keys[1], hid_features, 2 * hid_features, bias)
-        else:
-            self.wa = jax.random.normal(keys[1], (hid_features,))
-            self.wc = jax.random.normal(keys[2], (hid_features,))
-
-        self.in_features = in_features
-        self.hid_features = hid_features
-
-    def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
-        r"""
-        Arguments:
-            h: The previous hidden state :math:`h_{i-1}`, with shape :math:`(*, H)`.
-            x: The input vector :math:`x_i`, with shape :math:`(*, C)`.
-
-        Returns:
-            The hidden state :math:`(h_i, h_i)`.
-        """
-
-        if self.modulated:
-            ah, ch = jnp.split(self.lin_h(h), 2, axis=-1)
-        else:
-            ah = self.wa * h
-            ch = self.wc * h
-
-        ax, cx, gx = jnp.split(self.lin_x(x), 3, axis=-1)
-
-        a = 1.0 + jax.nn.tanh(ax + ah)
-        c = jax.nn.sigmoid(cx + ch)
-        g = jax.nn.tanh(gx + a * h)
-
-        h = (1 - c) * g + c * h
-
-        return h, h
-
-    def init(self) -> Array:
-        r"""
-        Returns:
-            The initial hidden state :math:`h_0 = 0`, with shape :math:`(H)`.
-        """
-
-        return jnp.zeros(self.hid_features)
-
-
-class MGUCell(Module):
-    r"""Creates a minimal gated unit (MGU) cell.
-
-    References:
-        | Minimal Gated Unit for Recurrent Neural Networks (Zhou et al., 2016)
-        | https://arxiv.org/pdf/1603.09420
-
-    Arguments:
-        key: A PRNG key for initialization.
-        in_features: The number of input features :math:`C`.
-        hid_features: The number of hidden features :math:`H`.
-        bias: Whether the cell learns additive biases or not.
-    """
-
-    def __init__(
-        self,
-        key: Array,
-        in_features: int,
-        hid_features: int,
-        bias: bool = True,
-    ):
-        keys = jax.random.split(key, 2)
-
-        self.lin_fh = Linear(keys[0], hid_features, 1 * hid_features, bias)
-        self.lin_hh = Linear(keys[0], hid_features, 1 * hid_features, bias)
-        self.lin_x = Linear(keys[1], in_features, 2 * hid_features, bias)
-
-        self.in_features = in_features
-        self.hid_features = hid_features
-
-    def __call__(self, h: Array, x: Array) -> Tuple[Array, Array]:
-        r"""
-        Arguments:
-            h: The previous hidden state :math:`h_{i-1}`, with shape :math:`(*, H)`.
-            x: The input vector :math:`x_i`, with shape :math:`(*, C)`.
-
-        Returns:
-            The hidden state :math:`(h_i, h_i)`.
-        """
-
-        fh = self.lin_fh(h)
-        fx, gx = jnp.split(self.lin_x(x), 2, axis=-1)
-        f = jax.nn.sigmoid(fx + fh)
-        gh = self.lin_hh(f * h)
-        g = jax.nn.tanh(gx + gh)
-        h = (1 - f) * g + f * h
-
-        return h, h
-
-    def init(self) -> Array:
-        r"""
-        Returns:
-            The initial hidden state :math:`h_0 = 0`, with shape :math:`(H)`.
-        """
-
-        return jnp.zeros(self.hid_features)
-
-
 class LSTMCell(Cell):
     r"""Creates a long short-term memory (LSTM) cell.
 
@@ -288,25 +159,28 @@ class LSTMCell(Cell):
         | https://ieeexplore.ieee.org/abstract/document/6795963
 
     Arguments:
-        key: A PRNG key for initialization.
         in_features: The number of input features :math:`C`.
         hid_features: The number of hidden features :math:`H`.
         bias: Whether the cell learns additive biases or not.
+        key: A PRNG key for initialization. If :py:`None`,
+            :func:`inox.random.get_rng` is used instead.
     """
 
     def __init__(
         self,
-        key: Array,
         in_features: int,
         hid_features: int,
         bias: bool = True,
+        key: Array = None,
     ):
-        keys = jax.random.split(key, 2)
+        if key is None:
+            keys = get_rng().split(2)
+        else:
+            keys = jax.random.split(key, 2)
 
-        self.lin_h = Linear(keys[0], hid_features, 4 * hid_features, bias)
-        self.lin_x = Linear(keys[1], in_features, 4 * hid_features, bias)
+        self.lin_h = Linear(hid_features, 4 * hid_features, bias, key=keys[0])
+        self.lin_x = Linear(in_features, 4 * hid_features, bias, key=keys[1])
 
-        self.in_features = in_features
         self.hid_features = hid_features
 
     def __call__(

@@ -13,6 +13,7 @@ from typing import *
 
 from .linear import Linear
 from .module import Module
+from ..random import get_rng
 
 
 def attention(
@@ -66,7 +67,6 @@ class MultiheadAttention(Module):
         | https://arxiv.org/abs/1706.03762
 
     Arguments:
-        key: A PRNG key for initialization.
         heads: The number of attention heads.
         in_features: The number of input features :math:`C`.
         hid_features: The number of hidden features :math:`H` per head.
@@ -77,11 +77,12 @@ class MultiheadAttention(Module):
             :math:`i`-th query is only allowed to attend the :math:`j`-th key if
             :math:`j - i \leq T - S`.
         dropout: The dropout rate on attention weights.
+        key: A PRNG key for initialization. If :py:`None`,
+            :func:`inox.random.get_rng` is used instead.
     """
 
     def __init__(
         self,
-        key: Array,
         heads: int,
         in_features: int,
         hid_features: int,
@@ -89,16 +90,20 @@ class MultiheadAttention(Module):
         bias: bool = True,
         causal: bool = False,
         dropout: float = 0.0,
+        key: Array = None,
     ):
-        keys = jax.random.split(key, 4)
+        if key is None:
+            keys = get_rng().split(4)
+        else:
+            keys = jax.random.split(key, 4)
 
         if out_features is None:
             out_features = in_features
 
-        self.lin_q = Linear(keys[0], in_features, hid_features * heads, bias=bias)
-        self.lin_k = Linear(keys[1], in_features, hid_features * heads, bias=bias)
-        self.lin_v = Linear(keys[2], in_features, hid_features * heads, bias=False)
-        self.lin_y = Linear(keys[3], hid_features * heads, out_features, bias=False)
+        self.lin_q = Linear(in_features, hid_features * heads, bias, key=keys[0])
+        self.lin_k = Linear(in_features, hid_features * heads, bias, key=keys[1])
+        self.lin_v = Linear(in_features, hid_features * heads, False, key=keys[2])
+        self.lin_y = Linear(hid_features * heads, out_features, False, key=keys[3])
 
         self.heads = heads
         self.causal = causal

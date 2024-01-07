@@ -1,4 +1,51 @@
-r"""Base modules"""
+r"""Base modules
+
+In Inox, a module is a PyTree whose branches are its attributes. A branch can be any
+PyTree-compatible object (:py:`bool`, :py:`str`, :py:`list`, :py:`dict`, ...), including
+other modules. Parametric functions, such as neural networks, should subclass
+:class:`Module` and indicate their parameters with :class:`Parameter`.
+
+.. code-block:: python
+
+    import jax
+    import jax.random as jrd
+    import inox
+    import inox.nn as nn
+
+    class Linear(nn.Module):
+        def __init__(self, in_features, out_features, key):
+            keys = jrd.split(key, 2)
+
+            self.weight = Parameter(jrd.normal(keys[0], (in_features, out_features)))
+            self.bias = Parameter(jrd.normal(keys[1], (out_features,)))
+
+        def __call__(self, x):
+            return x @ self.weight() + self.bias()
+
+    class Classifier(nn.Module):
+        def __init__(self, in_features, num_classes, key):
+            keys = jrd.split(key, 3)
+
+            self.l1 = Linear(in_features, 64, key=keys[0])
+            self.l2 = Linear(64, 64, key=keys[1])
+            self.l3 = Linear(64, num_classes, key=keys[2])
+            self.relu = nn.ReLU()
+
+            self.return_logits = True
+
+        def __call__(self, x):
+            x = self.l1(x)
+            x = self.l2(self.relu(x))
+            x = self.l3(self.relu(x))
+
+            if self.return_logits:
+                return x
+            else:
+                return jax.nn.softmax(x)
+
+    key = jax.random.key(0)
+    model = Classifier(16, 3, key)
+"""
 
 from __future__ import annotations
 
@@ -24,52 +71,6 @@ def is_module(x: Any) -> bool:
 
 class Module(Namespace):
     r"""Base class for all modules.
-
-    A module is a PyTree whose branches are its attributes. A branch can be any
-    PyTree-compatible object (:py:`bool`, :py:`str`, :py:`list`, :py:`dict`, ...),
-    including other modules. Parametric functions, such as neural networks, should
-    subclass :class:`Module` and indicate their parameters with :class:`Parameter`.
-
-    .. code-block:: python
-
-        import jax
-        import jax.random as jrd
-        import inox
-        import inox.nn as nn
-
-        class Linear(nn.Module):
-            def __init__(self, key, in_features, out_features):
-                keys = jrd.split(key, 2)
-
-                self.weight = Parameter(jrd.normal(keys[0], (in_features, out_features)))
-                self.bias = Parameter(jrd.normal(keys[1], (out_features,)))
-
-            def __call__(self, x):
-                return x @ self.weight() + self.bias()
-
-        class Classifier(nn.Module):
-            def __init__(self, key, in_features, num_classes):
-                keys = jrd.split(key, 3)
-
-                self.l1 = Linear(keys[0], in_features, 64)
-                self.l2 = Linear(keys[1], 64, 64)
-                self.l3 = Linear(keys[2], 64, num_classes)
-                self.relu = nn.ReLU()
-
-                self.return_logits = True
-
-            def __call__(self, x):
-                x = self.l1(x)
-                x = self.l2(self.relu(x))
-                x = self.l3(self.relu(x))
-
-                if self.return_logits:
-                    return x
-                else:
-                    return jax.nn.softmax(x)
-
-        key = jax.random.key(0)
-        model = Classifier(key)
 
     Arguments:
         kwargs: A name-value mapping.

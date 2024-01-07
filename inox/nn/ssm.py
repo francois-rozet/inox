@@ -13,7 +13,8 @@ import numpy as np
 from jax import Array
 from typing import *
 
-from .module import Module
+from .module import Module, Parameter
+from ..random import get_rng
 
 
 class SISO(Module):
@@ -96,30 +97,40 @@ class S4(SISO):
         | https://srush.github.io/annotated-s4
 
     Arguments:
-        key: A PRNG key for initialization.
         hid_features: The number of hidden features :math:`H`.
+        key: A PRNG key for initialization. If :py:`None`,
+            :func:`inox.random.get_rng` is used instead.
 
     Example:
-        >>> ssm = S4(key, hid_features=64)
+        >>> ssm = S4(hid_features=64, key=key)
         >>> u = jax.numpy.linspace(0.0, 1.0, 1024)
         >>> y = ssm(u)
     """
 
-    def __init__(self, key: Array, hid_features: int):
-        keys = jax.random.split(key, 3)
+    def __init__(self, hid_features: int, key: Array = None):
+        if key is None:
+            keys = get_rng().split(3)
+        else:
+            keys = jax.random.split(key, 3)
 
         A, P = S4.DPLR_HiPPO(hid_features)
 
-        self.A_re = jnp.log(-A.real)
-        self.A_im = A.imag
-        self.P = P
-        self.B = jax.random.normal(keys[0], (hid_features,), dtype=complex)
-        self.C = jax.random.normal(keys[1], (hid_features,), dtype=complex)
-        self.log_dt = jax.random.uniform(
-            keys[2],
-            (),
-            minval=math.log(1e-3),
-            maxval=math.log(1e-1),
+        self.A_re = Parameter(jnp.log(-A.real))
+        self.A_im = Parameter(A.imag)
+        self.P = Parameter(P)
+        self.B = Parameter(
+            jax.random.normal(keys[0], (hid_features,), dtype=complex)
+        )
+        self.C = Parameter(
+            jax.random.normal(keys[1], (hid_features,), dtype=complex)
+        )
+        self.log_dt = Parameter(
+            jax.random.uniform(
+                keys[2],
+                (),
+                minval=math.log(1e-3),
+                maxval=math.log(1e-1),
+            )
         )
 
     @staticmethod
@@ -147,9 +158,9 @@ class S4(SISO):
         return jnp.asarray(A), jnp.asarray(P)
 
     def discrete(self) -> Tuple[Array, Array, Array]:
-        A = -jnp.exp(self.A_re) + 1j * self.A_im
-        P, B, C = self.P, self.B, self.C
-        dt = jnp.exp(self.log_dt)
+        A = -jnp.exp(self.A_re()) + 1j * self.A_im()
+        P, B, C = self.P(), self.B(), self.C()
+        dt = jnp.exp(self.log_dt())
 
         D = jnp.diag(1 / (2 / dt - A))
         PQ = jnp.outer(P, P.conj())
@@ -162,9 +173,9 @@ class S4(SISO):
         return Ab, Bb, C
 
     def kernel(self, length: int) -> Array:
-        A = -jnp.exp(self.A_re) + 1j * self.A_im
-        P, B, C = self.P, self.B, self.C
-        dt = jnp.exp(self.log_dt)
+        A = -jnp.exp(self.A_re()) + 1j * self.A_im()
+        P, B, C = self.P(), self.B(), self.C()
+        dt = jnp.exp(self.log_dt())
 
         # \tilde{C}
         Ab, _, _ = self.discrete()
