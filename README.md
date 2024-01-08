@@ -2,7 +2,9 @@
 
 # Stainless neural networks in JAX
 
-Inox is a minimal [JAX](https://github.com/google/jax) library for neural networks with an intuitive PyTorch-like interface. As with [Equinox](https://github.com/patrick-kidger/equinox), modules are represented as PyTrees, which allows to pass networks in and out of JAX transformations, like `jax.jit` or `jax.vmap`. However, Inox modules automatically detect non-array leaves, like hyper-parameters or boolean flags, and consider them as static. Consequently, Inox modules are compatible with native JAX transformations out of the box, and do not require custom lifted transformations.
+Inox is a minimal [JAX](https://github.com/google/jax) library for neural networks with an intuitive PyTorch-like syntax. As with [Equinox](https://github.com/patrick-kidger/equinox), modules are represented as PyTrees, which enables complex architectures, easy manipulations, and functional transformations.
+
+Inox aims to be a leaner version of [Equinox](https://github.com/patrick-kidger/equinox) by only retaining its core features: PyTrees and lifted transformations. In addition, Inox takes inspiration from other projects like [NNX](https://github.com/cgarciae/nnx) and [Serket](https://github.com/ASEM000/serket) to provide a versatile interface.
 
 > Inox means "stainless steel" in French 🔪
 
@@ -22,7 +24,7 @@ pip install git+https://github.com/francois-rozet/inox
 
 ## Getting started
 
-Networks are defined with an intuitive PyTorch-like syntax,
+Models are defined with an intuitive PyTorch-like syntax,
 
 ```python
 import jax
@@ -34,9 +36,9 @@ class MLP(nn.Module):
     def __init__(self, key):
         keys = jax.random.split(key, 3)
 
-        self.l1 = nn.Linear(keys[0], 3, 64)
-        self.l2 = nn.Linear(keys[1], 64, 64)
-        self.l3 = nn.Linear(keys[2], 64, 3)
+        self.l1 = nn.Linear(3, 64, key=keys[0])
+        self.l2 = nn.Linear(64, 64, key=keys[1])
+        self.l3 = nn.Linear(64, 3, key=keys[2])
         self.relu = nn.ReLU()
 
     def __call__(self, x):
@@ -46,21 +48,34 @@ class MLP(nn.Module):
 
         return x
 
-network = MLP(init_key)
+model = MLP(init_key)
 ```
 
-and are fully compatible with native JAX transformations.
+and are compatible with JAX transformations.
 
 ```python
 X = jax.random.normal(data_key, (1024, 3))
 Y = jax.numpy.sort(X, axis=-1)
 
 @jax.jit
-def loss_fn(network, x, y):
-    pred = jax.vmap(network)(x)
+def loss_fn(model, x, y):
+    pred = jax.vmap(model)(x)
     return jax.numpy.mean((y - pred) ** 2)
 
-grads = jax.grad(loss_fn)(network, X, Y)
+grads = jax.grad(loss_fn)(model, X, Y)
+```
+
+However, if a module contains strings or flags, it becomes incompatible with JAX transformations. For this reason, Inox provides lifted transformations that consider all non-array leaves as static.
+
+```python
+model.name = 'stainless'
+
+@inox.jit
+def loss_fn(model, x, y):
+    pred = inox.vmap(model)(x)
+    return jax.numpy.mean((y - pred) ** 2)
+
+grads = inox.grad(loss_fn)(model, X, Y)
 ```
 
 For more information, check out the documentation at [inox.readthedocs.io](https://inox.readthedocs.io).
