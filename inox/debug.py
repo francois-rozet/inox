@@ -11,12 +11,12 @@ from jax.core import Tracer
 from typing import *
 
 
-def same_trace(a: Array, b: Array, ignore_primal: bool = False) -> bool:
+def same_trace(x: Array, y: Array, ignore_primal: bool = False) -> bool:
     r"""Checks whether two arrays have the same trace source.
 
     Arguments:
-        a: The first array.
-        b: The second array.
+        x: The first array.
+        y: The second array.
         ignore_primal: Whether to ignore primal traces (:func:`jax.grad`).
 
     Example:
@@ -30,15 +30,15 @@ def same_trace(a: Array, b: Array, ignore_primal: bool = False) -> bool:
     """
 
     if ignore_primal:
-        while hasattr(a, 'primal'):
-            a = a.primal
+        while hasattr(x, 'primal'):
+            x = x.primal
 
-        while hasattr(b, 'primal'):
-            b = b.primal
+        while hasattr(y, 'primal'):
+            y = y.primal
 
-    if isinstance(a, Tracer) and isinstance(b, Tracer):
-        return a._trace.main == b._trace.main
-    elif isinstance(a, Tracer) or isinstance(b, Tracer):
+    if isinstance(x, Tracer) and isinstance(y, Tracer):
+        return x._trace.main == y._trace.main
+    elif isinstance(x, Tracer) or isinstance(y, Tracer):
         return False
     else:
         return True

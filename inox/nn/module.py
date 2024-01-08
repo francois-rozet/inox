@@ -169,8 +169,8 @@ class ModuleDef(Static):
         return self.value
 
 
-class Parameter(Namespace):
-    r"""Wrapper to indicate optimizable arrays.
+class Parameter(NamedTuple):
+    r"""Wrapper to indicate an optimizable array.
 
     All arrays that require gradient updates in a :class:`Module` should be wrapped in a
     :class:`Parameter` instance.
@@ -179,14 +179,13 @@ class Parameter(Namespace):
         value: An array.
 
     Example:
-        >>> weight = Parameter(jax.numpy.ones((3, 5)))
-        >>> bias = Parameter(jax.numpy.zeros(5))
+        >>> weight = Parameter(jax.numpy.ones((3, 5))); weight
+        Parameter(float32[3, 5])
         >>> def linear(x):
-        ...     return x @ weight() + bias()
+        ...     return x @ weight()
     """
 
-    def __init__(self, value: Array):
-        self.value = value
+    value: Array
 
     def __call__(self) -> Array:
         r"""
@@ -197,7 +196,10 @@ class Parameter(Namespace):
         return self.value
 
     def __getattr__(self, attr: str) -> Any:
-        return getattr(super().__getattr__('value'), attr)
+        return getattr(self.value, attr)
+
+    def __repr__(self) -> str:
+        return self.tree_repr()
 
     def tree_repr(self, **kwargs) -> str:
-        return tree_repr(self.value, **kwargs)
+        return f'{self.__class__.__name__}({tree_repr(self.value, **kwargs)})'

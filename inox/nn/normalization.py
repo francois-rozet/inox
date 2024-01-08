@@ -12,10 +12,15 @@ from jax import Array
 from typing import *
 
 from .module import Module
-from ..debug import same_trace
+from .stateful import Stateful, StateEntry
 
 
-class BatchNorm(Module):
+class Statistics(NamedTuple):
+    mean: Array
+    var: Array
+
+
+class BatchNorm(Stateful):
     r"""Creates a batch-normalization layer.
 
     .. math:: y = \frac{x - \mathbb{E}[x]}{\sqrt{\mathbb{V}[x] + \epsilon}}
@@ -50,34 +55,46 @@ class BatchNorm(Module):
         self.epsilon = epsilon
         self.momentum = momentum
 
-        self.running_mean = jnp.zeros(channels)
-        self.running_var = jnp.ones(channels)
+        self.stats = StateEntry(
+            Statistics(
+                mean=jnp.zeros(channels),
+                var=jnp.ones(channels),
+            )
+        )
 
-    def __call__(self, x: Array) -> Array:
+    def __call__(self, x: Array, state: Dict) -> Tuple[Array, Dict]:
         r"""
         Arguments:
             x: The input tensor :math:`x`, with shape :math:`(N, *, C)`.
+            state: The state dictionary.
 
         Returns:
-            The output tensor :math:`y`, with shape :math:`(N, *, C)`.
+            The output tensor :math:`y`, with shape :math:`(N, *, C)`, and the
+            (updated) state dictionary.
         """
 
         if self.training:
+            assert x.ndim > 1, "the input tensor is not batched."
+
             y = x.reshape(-1, x.shape[-1])
             mean = jnp.mean(y, axis=0)
             var = jnp.var(y, axis=0)
 
-            self.running_mean = self.ema(self.running_mean, jax.lax.stop_gradient(mean))
-            self.running_var = self.ema(self.running_var, jax.lax.stop_gradient(var))
-        else:
-            mean = self.running_mean
-            var = self.running_var
+            stats = state[self.stats]
+            stats = Statistics(
+                mean=self.ema(stats.mean, jax.lax.stop_gradient(mean)),
+                var=self.ema(stats.var, jax.lax.stop_gradient(var)),
+            )
 
-        return (x - mean) / jnp.sqrt(var + self.epsilon)
+            state = self.update(state, {self.stats: stats})
+        else:
+            mean, var = state[self.stats]
+
+        y = (x - mean) / jnp.sqrt(var + self.epsilon)
+
+        return y, state
 
     def ema(self, x: Array, y: Array) -> Array:
-        assert same_trace(x, y), "an unsafe side effect was detected. Ensure that the running statistic and input arrays have the same trace."
-
         return self.momentum * x + (1 - self.momentum) * y
 
 

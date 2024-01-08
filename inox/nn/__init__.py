@@ -12,3 +12,4 @@ from .padding import *
 from .pooling import *
 from .recurrent import *
 from .ssm import *
+from .stateful import *

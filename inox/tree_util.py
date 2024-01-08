@@ -376,15 +376,22 @@ def tree_repr(
     if hasattr(tree, 'tree_repr'):
         return tree.tree_repr(**kwargs)
     elif isinstance(tree, tuple):
-        bra, ket = '(', ')'
-        lines = [tree_repr(x, **kwargs) for x in tree]
+        if hasattr(tree, '_fields'):
+            bra, ket = f'{type(tree).__name__}(', ')'
+            lines = [
+                f'{field}={tree_repr(value, **kwargs)}'
+                for field, value in tree._asdict().items()
+            ]
+        else:
+            bra, ket = '(', ')'
+            lines = [tree_repr(x, **kwargs) for x in tree]
     elif isinstance(tree, list):
         bra, ket = '[', ']'
         lines = [tree_repr(x, **kwargs) for x in tree]
     elif isinstance(tree, dict):
         bra, ket = '{', '}'
         lines = [
-            f'{tree_repr(key)}: {tree_repr(value)}'
+            f'{repr(key)}: {tree_repr(value, **kwargs)}'
             for key, value in tree.items()
         ]
     elif is_array(tree) and typeonly:
