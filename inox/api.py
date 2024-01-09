@@ -1,27 +1,12 @@
 r"""Extended user-facing transformations and utilities
 
-The transformations provided by :mod:`inox.api` are lifted versions of native JAX
-transformations for which all non-array leaves (:py:`float`, :py:`str`, functions, ...)
-are considered static, that is part of the tree structure.
-
-Roughly, for a function :py:`f` and a JAX transformation :py:`jax.transform`,
-
-.. code-block:: python
-
-    y = inox.transform(f)(x)
-
-is equivalent to
-
-.. code-block:: python
-
-    g = lambda x: inox.tree_mask(f(inox.tree_unmask(x)))
-    y = inox.tree_unmask(jax.transform(g)(inox.tree_mask(x)))
-
-Descriptions
-------------
+The transformations provided in the :mod:`inox.api` module are lifted versions of native
+JAX transformations for which all non-array leaves (:py:`float`, :py:`str`, functions,
+...) are considered static, that is part of the tree structure.
 """
 
 __all__ = [
+    'automask',
     'jit',
     'grad',
     'value_and_grad',
@@ -43,22 +28,65 @@ from .tree_util import tree_mask, tree_unmask
 
 @cache
 def inner(fun: Callable):
+    if fun is getattr(fun, '__inner__', None):
+        return fun
+
+    if fun is getattr(fun, '__outer__', None):
+        return fun.__wrapped__
+
     @wraps(fun)
+    @api_boundary
     def wrapped(*args, **kwargs):
         return tree_mask(fun(*tree_unmask(args), **tree_unmask(kwargs)))
+
+    wrapped.__inner__ = wrapped
 
     return wrapped
 
 
 def outer(fun: Callable):
+    if fun is getattr(fun, '__inner__', None):
+        return fun.__wrapped__
+
+    if fun is getattr(fun, '__outer__', None):
+        return fun
+
     @wraps(fun)
+    @api_boundary
     def wrapped(*args, **kwargs):
         return tree_unmask(fun(*tree_mask(args), **tree_mask(kwargs)))
+
+    wrapped.__outer__ = wrapped
 
     return wrapped
 
 
-def masked(transform: Callable) -> Callable:
+def automask(transform: Callable) -> Callable:
+    r"""Lifts a transformation to consider all non-array leaves as static.
+
+    For a function :py:`f` and a JAX transformation :py:`jax.tf`,
+
+    .. code-block:: python
+
+        y = automask(jax.tf)(f)(x)
+
+    is equivalent to
+
+    .. code-block:: python
+
+        g = lambda x: inox.tree_mask(f(inox.tree_unmask(x)))
+        y = inox.tree_unmask(jax.tf(g)(inox.tree_mask(x)))
+
+    See also:
+        :func:`inox.tree_util.tree_mask`
+
+    Arguments:
+        transform: The transformation to lift.
+
+    Returns:
+        The lifted transformation.
+    """
+
     @wraps(transform)
     @api_boundary
     def wrapped(fun: Callable, *args, **kwargs) -> Callable:
@@ -67,11 +95,11 @@ def masked(transform: Callable) -> Callable:
     return wrapped
 
 
-jit = masked(jax.jit)
-grad = masked(jax.grad)
-value_and_grad = masked(jax.value_and_grad)
-jacfwd = masked(jax.jacfwd)
-jacrev = masked(jax.jacrev)
-hessian = masked(jax.hessian)
-checkpoint = masked(jax.checkpoint)
-vmap = masked(jax.vmap)
+jit = automask(jax.jit)
+grad = automask(jax.grad)
+value_and_grad = automask(jax.value_and_grad)
+jacfwd = automask(jax.jacfwd)
+jacrev = automask(jax.jacrev)
+hessian = automask(jax.hessian)
+checkpoint = automask(jax.checkpoint)
+vmap = automask(jax.vmap)

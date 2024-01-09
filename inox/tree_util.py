@@ -159,6 +159,10 @@ def tree_mask(
 ) -> PyTree:
     r"""Masks the static leaves of a tree.
 
+    The structure of the tree remains unchanged, but leaves that are considered static
+    are wrapped into a :class:`Static` instance, which hides them from
+    :func:`jax.tree_util.tree_leaves` and :func:`jax.tree_util.tree_map`.
+
     See also:
         :func:`tree_unmask`
 
