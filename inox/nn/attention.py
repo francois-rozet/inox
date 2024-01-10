@@ -89,7 +89,7 @@ class MultiheadAttention(Module):
         out_features: int = None,
         bias: bool = True,
         causal: bool = False,
-        dropout: float = 0.0,
+        dropout: Union[float, Array] = 0.0,
         key: Array = None,
     ):
         if key is None:
@@ -107,7 +107,7 @@ class MultiheadAttention(Module):
 
         self.heads = heads
         self.causal = causal
-        self.dropout = dropout
+        self.dropout = jax.numpy.asarray(dropout)
 
     def __call__(
         self,

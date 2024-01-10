@@ -57,7 +57,11 @@ def unflatten(x: Array, axis: int, shape: Sequence[int]) -> Array:
     return x.reshape(*x.shape[:axis], *shape, *x.shape[axis % x.ndim + 1 :])
 
 
-def vectorize(f: Callable, ndims: Union[int, Sequence[int]]):
+def vectorize(
+    f: Callable,
+    ndims: Union[int, Sequence[int]],
+    exclude: Iterable[int] = (),
+):
     r"""Vectorizes a function with broadcasting.
 
     :func:`vectorize` is similar to :func:`jax.numpy.vectorize` except that it takes the
@@ -66,6 +70,8 @@ def vectorize(f: Callable, ndims: Union[int, Sequence[int]]):
     Arguments:
         f: A function to vectorize.
         ndims: The number of dimensions expected for each positional argument.
+        exclude: A set of positive indices representing positional arguments that
+            should not be vectorized.
 
     Returns:
         The vectorized function.
@@ -78,8 +84,23 @@ def vectorize(f: Callable, ndims: Union[int, Sequence[int]]):
     if isinstance(ndims, int):
         ndims = [ndims]
 
+    exclude = set(exclude)
+
     @wraps(f)
     def wrapped(*args, **kwargs):
+        others = [arg for i, arg in enumerate(args) if i in exclude]
+        args = [jax.numpy.asarray(arg) for i, arg in enumerate(args) if i not in exclude]
+
+        def g(*args):
+            ia, io = iter(args), iter(others)
+
+            args = (
+                next(io) if i in exclude else next(ia)
+                for i in range(len(args) + len(others))
+            )
+
+            return f(*args, **kwargs)
+
         assert len(args) <= len(ndims)
         assert all(0 <= ndim <= arg.ndim for arg, ndim in zip(args, ndims))
 
@@ -90,8 +111,6 @@ def vectorize(f: Callable, ndims: Union[int, Sequence[int]]):
         for arg, shape in zip(args, shapes):
             axes = [i for i, size in enumerate(shape) if size == 1]
             squeezed.append(jax.numpy.squeeze(arg, axes))
-
-        g = partial(f, **kwargs)
 
         for i, size in enumerate(reversed(broadcast), start=1):
             in_axes = [

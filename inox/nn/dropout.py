@@ -31,8 +31,8 @@ class Dropout(Module):
         p: The dropout rate :math:`p \in [0, 1]`.
     """
 
-    def __init__(self, p: float):
-        self.p = p
+    def __init__(self, p: Union[float, Array] = 0.5):
+        self.p = jax.numpy.asarray(p)
 
     def __call__(self, x: Array, key: Array) -> Array:
         r"""

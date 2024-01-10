@@ -49,11 +49,11 @@ class BatchNorm(Module):
     def __init__(
         self,
         channels: int,
-        epsilon: float = 1e-05,
-        momentum: float = 0.9,
+        epsilon: Union[float, Array] = 1e-05,
+        momentum: Union[float, Array] = 0.9,
     ):
-        self.epsilon = epsilon
-        self.momentum = momentum
+        self.epsilon = jnp.asarray(epsilon)
+        self.momentum = jnp.asarray(momentum)
 
         self.stats = StateEntry(
             Statistics(
@@ -115,10 +115,10 @@ class LayerNorm(Module):
     def __init__(
         self,
         axis: Union[int, Sequence[int]] = -1,
-        epsilon: float = 1e-05,
+        epsilon: Union[float, Array] = 1e-05,
     ):
         self.axis = axis
-        self.epsilon = epsilon
+        self.epsilon = jnp.asarray(epsilon)
 
     def __call__(self, x: Array) -> Array:
         r"""

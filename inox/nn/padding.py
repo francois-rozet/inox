@@ -28,11 +28,11 @@ class Pad(Module):
         self,
         padding: Sequence[Tuple[int, int]],
         mode: str = 'constant',
-        value: float = 0.0,
+        value: Union[float, Array] = 0.0,
     ):
         self.padding = padding
         self.mode = mode
-        self.value = value
+        self.value = jax.numpy.asarray(value)
 
     def __call__(self, x: Array) -> Array:
         r"""

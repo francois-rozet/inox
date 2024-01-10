@@ -112,8 +112,8 @@ class LeakyReLU(Activation):
         alpha: The negative slope :math:`\alpha`.
     """
 
-    def __init__(self, alpha: float = 0.01):
-        self.alpha = alpha
+    def __init__(self, alpha: Union[float, Array] = 0.01):
+        self.alpha = jax.numpy.asarray(alpha)
 
     def __call__(self, x: Array) -> Array:
         return jax.nn.leaky_relu(x, self.alpha)
@@ -138,8 +138,8 @@ class ELU(Activation):
         alpha: The coefficient :math:`\alpha`.
     """
 
-    def __init__(self, alpha: float = 1.0):
-        self.alpha = alpha
+    def __init__(self, alpha: Union[float, Array] = 1.0):
+        self.alpha = jax.numpy.asarray(alpha)
 
     def __call__(self, x: Array) -> Array:
         return jax.nn.elu(x)
