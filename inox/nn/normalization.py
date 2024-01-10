@@ -3,11 +3,13 @@ r"""Normalization layers"""
 __all__ = [
     'BatchNorm',
     'LayerNorm',
+    'GroupNorm',
 ]
 
 import jax
 import jax.numpy as jnp
 
+from einops import rearrange
 from jax import Array
 from typing import *
 
@@ -133,3 +135,41 @@ class LayerNorm(Module):
         var = jnp.var(x, axis=self.axis, keepdims=True)
 
         return (x - mean) / jnp.sqrt(var + self.epsilon)
+
+
+class GroupNorm(LayerNorm):
+    r"""Creates a group-normalization layer.
+
+    References:
+        | Group Normalization (Wu et al., 2018)
+        | https://arxiv.org/abs/1803.08494
+
+    Arguments:
+        groups: The number of groups :math:`G` to separate channels into. If :math:`G = 1`,
+            the layer is equivalent to :class:`LayerNorm`.
+        epsilon: A numerical stability term :math:`\epsilon`.
+    """
+
+    def __init__(
+        self,
+        groups: int,
+        epsilon: Union[float, Array] = 1e-05,
+    ):
+        super().__init__(axis=-1, epsilon=epsilon)
+
+        self.groups = groups
+
+    def __call__(self, x: Array) -> Array:
+        r"""
+        Arguments:
+            x: The input tensor :math:`x`, with shape :math:`(*, C)`.
+
+        Returns:
+            The output tensor :math:`y`, with shape :math:`(*, C)`.
+        """
+
+        x = rearrange(x, '... (G D) -> ... G D', G=self.groups)
+        x = super().__call__(x)
+        x = rearrange(x, '... G D -> ... (G D)')
+
+        return x

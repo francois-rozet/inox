@@ -61,7 +61,8 @@ def test_Module():
     assert repr(module)
 
 
-def test_MLP():
+@pytest.mark.parametrize('norm', ['layer', 'group'])
+def test_MLP(norm: str):
     key = jax.random.key(0)
     x = jax.random.normal(key, (1024, 3))
     y = jnp.linalg.norm(x, axis=-1, keepdims=True)
@@ -73,9 +74,10 @@ def test_MLP():
             self.l1 = Linear(3, 64, key=keys[0])
             self.l2 = Linear(64, 1, key=keys[1])
             self.relu = ReLU()
+            self.norm = LayerNorm() if norm == 'group' else GroupNorm(4)
 
         def __call__(self, x):
-            return self.l2(self.relu(self.l1(x)))
+            return self.l2(self.norm(self.relu(self.l1(x))))
 
     # __init__
     model = MLP(key)
@@ -96,7 +98,7 @@ def test_MLP():
     grads = api.grad(loss)(model)
 
 
-def test_Stateful():
+def test_BatchNorm():
     key = jax.random.key(0)
     x = jax.random.uniform(key, (1024, 3))
     y = jnp.linalg.norm(x, axis=-1, keepdims=True)
