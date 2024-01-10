@@ -12,7 +12,7 @@ from jax import Array
 from typing import *
 
 from .module import Module
-from .stateful import Stateful, StateEntry
+from .state import StateEntry, update_state
 
 
 class Statistics(NamedTuple):
@@ -20,7 +20,7 @@ class Statistics(NamedTuple):
     var: Array
 
 
-class BatchNorm(Stateful):
+class BatchNorm(Module):
     r"""Creates a batch-normalization layer.
 
     .. math:: y = \frac{x - \mathbb{E}[x]}{\sqrt{\mathbb{V}[x] + \epsilon}}
@@ -86,7 +86,7 @@ class BatchNorm(Stateful):
                 var=self.ema(stats.var, jax.lax.stop_gradient(var)),
             )
 
-            state = self.update(state, {self.stats: stats})
+            state = update_state(state, {self.stats: stats})
         else:
             mean, var = state[self.stats]
 

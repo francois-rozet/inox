@@ -120,7 +120,7 @@ def test_Stateful():
 
     # __init__
     model = MLP(key)
-    model, state = pull_state(model)
+    model, state = export_state(model)
 
     # __call__
     y, new = model(x, state)

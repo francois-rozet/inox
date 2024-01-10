@@ -1,24 +1,24 @@
 r"""Stateful modules
 
-In Inox, in-place module mutations are not strictly prohibited, but are not recommended
-as they often lead to silent errors around JAX transformations. Instead, it is safer to
+In Inox, in-place module mutations are not prohibited, but are not recommended as they
+often lead to silent errors around JAX transformations. Instead, it is safer to
 externalize the state of modules and handle mutations explicitely.
 
-The :mod:`inox.nn.stateful` module provides a simple interface to declare the state of
-modules and define state mutations.
+The :mod:`inox.nn.state` module provides a simple interface to declare the state of
+modules and apply state updates.
 
 .. code-block:: python
 
-    class Moments(Stateful):
+    class Moments(nn.Module):
         def __init__(self, features):
-            self.first = StateEntry(jax.numpy.zeros(features))
-            self.second = StateEntry(jax.numpy.ones(features))
+            self.first = nn.StateEntry(jax.numpy.zeros(features))
+            self.second = nn.StateEntry(jax.numpy.ones(features))
 
         def __call__(self, x, state):
             first = state[self.first]
             second = state[self.second]
 
-            state = self.update(state, {
+            state = update_state(state, {
                 self.first: 0.9 * first + 0.1 * x,
                 self.second: 0.9 * second + 0.1 * x**2,
             })
@@ -52,16 +52,16 @@ modules and define state mutations.
 
     key = jax.random.key(0)
     model = MLP(16, 3, key)
-    model, state = inox.nn.pull_state(model)
+    model, state = nn.export_state(model)
 
     y, state = model(x, state)
 """
 
 __all__ = [
-    'Stateful',
     'StateEntry',
     'StateKey',
-    'pull_state',
+    'update_state',
+    'export_state',
 ]
 
 import jax
@@ -75,31 +75,6 @@ from ..tree_util import PyTree
 
 def is_entry(x: Any) -> bool:
     return isinstance(x, StateEntry)
-
-
-class Stateful(Module):
-    r"""Base class for stateful modules.
-
-    See also:
-        :class:`pull_state`
-
-    Arguments:
-        kwargs: A name-value mapping.
-    """
-
-    @staticmethod
-    def update(state: Dict, mutation: Dict) -> Dict:
-        r"""Creates a copy of the state dictionary and updates it.
-
-        Arguments:
-            state: The state dictionary.
-            mutation: The update.
-        """
-
-        state = state.copy()
-        state.update(mutation)
-
-        return state
 
 
 class StateEntry(NamedTuple):
@@ -128,8 +103,28 @@ class StateKey(NamedTuple):
         return f'{self.__class__.__name__}({repr(self.key)})'
 
 
-def pull_state(tree: PyTree) -> Tuple[PyTree, Dict]:
+def update_state(state: Dict, mutation: Dict) -> Dict:
+    r"""Creates a copy of the state dictionary and updates it.
+
+    Arguments:
+        state: The state dictionary.
+        mutation: The update.
+
+    Returns:
+        The updated state dictionary.
+    """
+
+    state = state.copy()
+    state.update(mutation)
+
+    return state
+
+
+def export_state(tree: PyTree) -> Tuple[PyTree, Dict]:
     r"""Pulls the state entries out of a tree.
+
+    State entries are replaced by state keys which can be used to index the state
+    dictionary.
 
     Arguments:
         tree: A tree or module.
@@ -139,11 +134,13 @@ def pull_state(tree: PyTree) -> Tuple[PyTree, Dict]:
 
     Example:
         >>> tree = {'a': 1, 'b': StateEntry(jax.numpy.zeros(2))}
-        >>> tree, state = pull_state(tree)
+        >>> tree, state = export_state(tree)
         >>> tree
         {'a': 1, 'b': StateKey("['b']")}
         >>> state
         {StateKey("['b']"): Array([0., 0.], dtype=float32)}
+        >>> state[tree['b']]
+        Array([0., 0.], dtype=float32)
     """
 
     nodes, treedef = jtu.tree_flatten_with_path(tree, is_entry)
