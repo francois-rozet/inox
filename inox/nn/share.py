@@ -22,7 +22,7 @@ with :class:`Reference`.
 
             self.relu = nn.ReLU()
 
-        def __call__(self, x):  # standard __call__, nothing fancy
+        def __call__(self, x):  # standard __call__
             x = self.l1(x)
             x = self.l2(self.relu(x))
             x = self.l3(self.relu(x))
@@ -41,9 +41,9 @@ with :class:`Reference`.
     {
       '.l1.value.bias.value': float32[64],
       '.l1.value.weight.value': float32[64, 64],
-      '.l3.bias.value.value': float32[32],
-      '.l3.weight.value': float32[64, 32],
-      '.l4.weight.value': float32[32, 32]
+      '.l3.bias.value': float32[64],
+      '.l3.weight.value.value': float32[64, 64],
+      '.l4.bias.value': float32[64]
     }
 """
 
