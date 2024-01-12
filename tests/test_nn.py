@@ -41,6 +41,7 @@ def test_Module():
     ## filters
     static, params, others = module.partition(Parameter)
 
+    assert all(key.endswith('.value') for key in params)
     assert all(isinstance(leaf, Array) for leaf in params.values())
     assert all(isinstance(leaf, Array) for leaf in others.values())
     assert isinstance(static, Hashable)
@@ -94,8 +95,19 @@ def test_MLP(norm: str):
 
     loss(model)
 
+    # Partition
+    static, params, others = model.partition(Parameter)
+
+    assert all(key.endswith('.value') for key in params)
+    assert all(isinstance(leaf, Array) for leaf in params.values())
+    assert all(isinstance(leaf, Array) for leaf in others.values())
+    assert isinstance(static, Hashable)
+
     # Gradients
-    grads = api.grad(loss)(model)
+    grads = api.grad(lambda params: loss(static(params, others)))(params)
+
+    # Print
+    assert repr(model)
 
 
 def test_BatchNorm():
@@ -147,5 +159,75 @@ def test_BatchNorm():
 
     l, state = loss(model, state)
 
+    # Partition
+    static, params, others = model.partition(Parameter)
+
+    assert all(key.endswith('.value') for key in params)
+    assert all(isinstance(leaf, Array) for leaf in params.values())
+    assert all(isinstance(leaf, Array) for leaf in others.values())
+    assert isinstance(static, Hashable)
+
     # Gradients
-    grads, state = api.grad(loss, has_aux=True)(model, state)
+    grads, state = api.grad(lambda params: loss(static(params, others), state), has_aux=True)(params)
+
+    # Print
+    assert repr(model)
+
+
+def test_share():
+    key = jax.random.key(0)
+    x = jax.random.uniform(key, (1024, 3))
+    y = jnp.linalg.norm(x, axis=-1, keepdims=True)
+
+    class MLP(Scope):
+        def __init__(self, key):
+            keys = jax.random.split(key, 3)
+
+            self.l1 = Linear(in_features=3, out_features=64, key=keys[0])
+            self.l2 = Linear(in_features=64, out_features=64, key=keys[1])
+            self.l4 = Linear(in_features=64, out_features=1, key=keys[2])
+            self.relu = ReLU()
+
+            self.l2 = Reference('l2', self.l2)
+            self.l2.cycle = self.l2
+            self.l3 = self.l2
+            self.l4.weight = Reference('l4.weight', self.l4.weight)
+            self.void = self.l4.weight
+
+        def __call__(self, x):
+            x = self.l1(x)
+            x = self.l2(self.relu(x))
+            x = self.l3(self.relu(x))
+            x = self.l4(self.relu(x))
+
+            return x
+
+    # __init__
+    model = MLP(key)
+
+    # __call__
+    z = model(x[0])
+    z = model(x)
+    z = jax.vmap(model)(x)
+
+    # JIT
+    @api.jit
+    def loss(model):
+        return jnp.mean((model(x) - y) ** 2)
+
+    loss(model)
+
+    # Partition
+    static, params, others = model.partition(Parameter)
+
+    assert not any(key.startswith('.l3') or key.startswith('.void') for key in params)
+    assert all(key.endswith('.value') for key in params)
+    assert all(isinstance(leaf, Array) for leaf in params.values())
+    assert all(isinstance(leaf, Array) for leaf in others.values())
+    assert isinstance(static, Hashable)
+
+    # Gradients
+    grads = api.grad(lambda params: loss(static(params, others)))(params)
+
+    # Print
+    assert repr(model)
