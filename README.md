@@ -24,7 +24,7 @@ pip install git+https://github.com/francois-rozet/inox
 
 ## Getting started
 
-Models are defined with an intuitive PyTorch-like syntax,
+Modules are defined with an intuitive PyTorch-like syntax,
 
 ```python
 import jax
@@ -65,7 +65,7 @@ def loss_fn(model, x, y):
 grads = jax.grad(loss_fn)(model, X, Y)
 ```
 
-However, if a module contains strings or flags, it becomes incompatible with JAX transformations. For this reason, Inox provides lifted transformations that consider all non-array leaves as static.
+However, if a tree contains strings or boolean flags, it becomes incompatible with JAX transformations. For this reason, Inox provides lifted transformations that consider all non-array leaves as static.
 
 ```python
 model.name = 'stainless'

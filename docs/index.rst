@@ -29,7 +29,7 @@ Alternatively, if you need the latest features, you can install it from the repo
 Getting started
 ---------------
 
-Models are defined with an intuitive PyTorch-like syntax,
+Modules are defined with an intuitive PyTorch-like syntax,
 
 .. code-block:: python
 
@@ -70,7 +70,7 @@ and are compatible with JAX transformations.
 
     grads = jax.grad(loss_fn)(model, X, Y)
 
-However, if a module contains strings or flags, it becomes incompatible with JAX transformations. For this reason, Inox provides lifted transformations that consider all non-array leaves as static.
+However, if a tree contains strings or boolean flags, it becomes incompatible with JAX transformations. For this reason, Inox provides lifted transformations that consider all non-array leaves as static.
 
 .. code-block:: python
 
