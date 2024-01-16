@@ -1,6 +1,6 @@
 r"""Stainless neural networks in JAX"""
 
-__version__ = '0.4.1'
+__version__ = '0.4.2'
 
 from . import api
 from . import debug
