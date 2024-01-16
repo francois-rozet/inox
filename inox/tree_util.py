@@ -2,6 +2,7 @@ r"""Extended utilities for tree-like data structures"""
 
 __all__ = [
     'Namespace',
+    'Partial',
     'Static',
     'tree_mask',
     'tree_unmask',
@@ -105,8 +106,36 @@ class Namespace(metaclass=PyTreeMeta):
         return self
 
 
+class Partial(Namespace):
+    r"""A version of :class:`functools.partial` that is a PyTree.
+
+    Arguments:
+        func: A function.
+        args: Positional arguments for future calls.
+        kwds: Keyword arguments for future calls.
+
+    Examples:
+        >>> increment = Partial(jax.numpy.add, 1)
+        >>> increment(2)
+        Array(3, dtype=int32, weak_type=True)
+
+        >>> println = Partial(print, sep='\n')
+        >>> println('Hello', 'World!')
+        Hello
+        World!
+    """
+
+    def __init__(self, func: Callable, *args: Any, **kwds: Any):
+        self.func = func
+        self.args = args
+        self.kwds = kwds
+
+    def __call__(self, *args: Any, **kwds: Any) -> Any:
+        return self.func(*self.args, *args, **self.kwds, **kwds)
+
+
 class Static(metaclass=PyTreeMeta):
-    r"""Wraps an hashable value as a leafless tree.
+    r"""Wraps an hashable value as a leafless PyTree.
 
     Arguments:
         value: An hashable value to wrap.
@@ -123,7 +152,11 @@ class Static(metaclass=PyTreeMeta):
 
     def __init__(self, value: Hashable):
         if not isinstance(value, Hashable):
-            warn(f"'{type(value).__name__}' object is not hashable.")
+            warn(f"considering a non-hashable object ('{type(value).__name__}') static could lead to frequent JIT recompilations.")
+
+        if callable(value):
+            if '<lambda>' in value.__qualname__ or '<locals>' in value.__qualname__:
+                warn(f"considering a local function ('{value.__qualname__}') static could lead to frequent JIT recompilations.")
 
         self.value = value
 

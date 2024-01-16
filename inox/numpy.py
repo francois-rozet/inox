@@ -8,7 +8,7 @@ __all__ = [
 
 import jax
 
-from functools import partial, wraps
+from functools import wraps
 from jax import Array
 from typing import *
 
