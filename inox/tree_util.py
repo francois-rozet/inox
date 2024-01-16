@@ -211,7 +211,7 @@ def tree_unmask(tree: PyTree) -> PyTree:
         [1, Array([0, 1], dtype=int32), 'three']
     """
 
-    is_static = lambda x: isinstance(x, Static)
+    is_static = lambda x: type(x) is Static
 
     return jtu.tree_map(
         f=lambda x: x.value if is_static(x) else x,
