@@ -15,6 +15,7 @@ __all__ = [
     'hessian',
     'checkpoint',
     'vmap',
+    'pmap',
 ]
 
 import jax
@@ -103,3 +104,4 @@ jacrev = automask(jax.jacrev)
 hessian = automask(jax.hessian)
 checkpoint = automask(jax.checkpoint)
 vmap = automask(jax.vmap)
+pmap = automask(jax.pmap)
