@@ -291,20 +291,22 @@ def tree_partition(
     treedef = jtu.tree_structure(tree, is_leaf)
     leaves = [{} for _ in filters] + [{}]
 
-    filters = [
-        (lambda x: isinstance(x, filtr))
-        if isinstance(filtr, type) else filtr
-        for filtr in filters
-    ]
+    def factory(filtr):
+        if isinstance(filtr, type):
+            return lambda x: isinstance(x, filtr)
+        else:
+            return filtr
+
+    predicates = list(map(factory, filters))
 
     if is_leaf is None:
-        is_node = lambda x: any(filtr(x) for filtr in filters)
+        is_node = lambda x: any(p(x) for p in predicates)
     else:
-        is_node = lambda x: any(filtr(x) for filtr in filters) or is_leaf(x)
+        is_node = lambda x: any(p(x) for p in predicates) or is_leaf(x)
 
     for path, node in jtu.tree_leaves_with_path(tree, is_node):
-        for i, filtr in enumerate(filters):
-            if filtr(node):
+        for i, p in enumerate(predicates):
+            if p(node):
                 break
         else:
             i = -1
