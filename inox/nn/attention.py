@@ -9,7 +9,7 @@ import math
 
 from einops import rearrange
 from jax import Array
-from typing import *
+from typing import Union
 
 # isort: local
 from .linear import Linear

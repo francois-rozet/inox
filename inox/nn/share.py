@@ -54,7 +54,7 @@ __all__ = [
 
 import jax.tree_util as jtu
 
-from typing import *
+from typing import Any, Hashable, NamedTuple
 
 # isort: local
 from .module import Module

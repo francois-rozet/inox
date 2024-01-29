@@ -6,7 +6,7 @@ __all__ = [
 
 
 from textwrap import indent
-from typing import *
+from typing import Any
 
 # isort: local
 from .module import Module

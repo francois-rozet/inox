@@ -11,7 +11,7 @@ import jax.numpy as jnp
 
 from einops import rearrange
 from jax import Array
-from typing import *
+from typing import Dict, NamedTuple, Sequence, Tuple, Union
 
 # isort: local
 from .module import Module

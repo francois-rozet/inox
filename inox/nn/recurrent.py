@@ -11,7 +11,7 @@ import jax
 import jax.numpy as jnp
 
 from jax import Array
-from typing import *
+from typing import Any, Tuple
 
 # isort: local
 from .linear import Linear

@@ -1,7 +1,5 @@
 r"""Tests for the inox.nn module."""
 
-# ruff: noqa: F841
-
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
@@ -85,9 +83,14 @@ def test_MLP(norm: str):
     model = MLP(key)
 
     # __call__
-    z = model(x[0])
-    z = model(x)
-    z = jax.vmap(model)(x)
+    z0 = model(x[0])
+    z1 = model(x)
+    z2 = jax.vmap(model)(x)
+
+    assert z0.shape == y[0].shape
+    assert z1.shape == y.shape
+    assert z2.shape == y.shape
+    assert jnp.allclose(z1, z2)
 
     # JIT
     @api.jit
@@ -106,6 +109,7 @@ def test_MLP(norm: str):
 
     # Gradients
     grads = api.grad(lambda params: loss(static(params, others)))(params)
+    params = jax.tree_map(lambda x, y: x + y, params, grads)
 
     # Print
     assert repr(model)
@@ -138,8 +142,9 @@ def test_BatchNorm():
     model, state = export_state(model)
 
     # __call__
-    y, new = model(x, state)
+    z, new = model(x, state)
 
+    assert z.shape == y.shape
     assert not any(jtu.tree_leaves(jax.tree_map(jnp.allclose, new, state)))
 
     with pytest.raises(TypeError):
@@ -173,6 +178,7 @@ def test_BatchNorm():
         return loss(static(params, others), state)
 
     grads, state = api.grad(ell, has_aux=True)(params)
+    params = jax.tree_map(lambda x, y: x + y, params, grads)
 
     # Print
     assert repr(model)
@@ -210,9 +216,14 @@ def test_share():
     model = MLP(key)
 
     # __call__
-    z = model(x[0])
-    z = model(x)
-    z = jax.vmap(model)(x)
+    z0 = model(x[0])
+    z1 = model(x)
+    z2 = jax.vmap(model)(x)
+
+    assert z0.shape == y[0].shape
+    assert z1.shape == y.shape
+    assert z2.shape == y.shape
+    assert jnp.allclose(z1, z2)
 
     # JIT
     @api.jit
@@ -232,6 +243,7 @@ def test_share():
 
     # Gradients
     grads = api.grad(lambda params: loss(static(params, others)))(params)
+    params = jax.tree_map(lambda x, y: x + y, params, grads)
 
     # Print
     assert repr(model)

@@ -10,7 +10,7 @@ import jax
 
 from functools import wraps
 from jax import Array
-from typing import *
+from typing import Callable, Iterable, Sequence, Union
 
 
 def flatten(x: Array, start: int = 0, stop: int = None) -> Array:

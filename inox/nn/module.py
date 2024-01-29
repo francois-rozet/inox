@@ -58,11 +58,19 @@ __all__ = [
 import jax.tree_util as jtu
 
 from jax import Array
-from typing import *
+from typing import Any, Callable, Dict, NamedTuple, Tuple, Union
 
 # isort: local
-from ..tree_util import *
-from ..tree_util import PyTreeDef
+from ..tree_util import (
+    Namespace,
+    PyTreeDef,
+    Static,
+    tree_combine,
+    tree_mask,
+    tree_partition,
+    tree_repr,
+    tree_unmask,
+)
 
 
 def is_module(x: Any) -> bool:

@@ -10,7 +10,7 @@ import math
 
 from functools import wraps
 from jax import Array
-from typing import *
+from typing import Callable, Sequence, Tuple, Union
 
 # isort: local
 from .module import Module

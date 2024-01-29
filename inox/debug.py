@@ -7,7 +7,6 @@ __all__ = [
 
 from jax import Array
 from jax.core import Tracer
-from typing import *
 
 
 def same_trace(x: Array, y: Array, ignore_primal: bool = False) -> bool:

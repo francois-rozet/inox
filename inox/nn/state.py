@@ -66,7 +66,7 @@ __all__ = [
 
 import jax.tree_util as jtu
 
-from typing import *
+from typing import Any, Dict, Hashable, NamedTuple, Tuple
 
 # isort: local
 from ..tree_util import PyTree

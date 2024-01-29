@@ -10,7 +10,7 @@ import jax
 import math
 
 from jax import Array
-from typing import *
+from typing import Sequence, Tuple, Union
 
 # isort: local
 from .module import Module, Parameter

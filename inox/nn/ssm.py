@@ -11,7 +11,7 @@ import math
 import numpy as np
 
 from jax import Array
-from typing import *
+from typing import Tuple
 
 # isort: local
 from .module import Module, Parameter

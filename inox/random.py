@@ -10,7 +10,7 @@ import jax
 
 from contextlib import contextmanager
 from jax import Array
-from typing import *
+from typing import Any, Union
 
 # isort: local
 from .debug import same_trace

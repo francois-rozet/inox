@@ -19,7 +19,7 @@ __all__ = [
 import jax
 
 from jax import Array
-from typing import *
+from typing import Sequence, Union
 
 # isort: local
 from .module import Module

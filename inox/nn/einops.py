@@ -14,7 +14,6 @@ __all__ = [
 import einops
 
 from jax import Array
-from typing import *
 
 # isort: local
 from .module import Module

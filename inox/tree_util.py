@@ -16,7 +16,7 @@ import numpy as np
 
 from jax import Array
 from textwrap import indent
-from typing import *
+from typing import Any, Callable, Dict, Hashable, Tuple, TypeVar, Union
 from warnings import warn
 
 PyTree = TypeVar('PyTree', bound=Any)
