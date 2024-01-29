@@ -151,7 +151,7 @@ class MultiheadAttention(Module):
         v = self.lin_v(xv)
 
         q, k, v = [
-            rearrange(x, '... L (N H) -> ... N L H', H=self.heads)
+            rearrange(x, '... L (N H) -> ... N L H', N=self.heads)
             for x in (q, k, v)
         ]
 
