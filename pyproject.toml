@@ -1,2 +1,37 @@
-[tool.black]
-skip-string-normalization = true
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "inox"
+description = "Stainless neural networks in JAX"
+authors = [
+  {name = "François Rozet", email = "francois.rozet@outlook.com"}
+]
+classifiers = [
+  "Intended Audience :: Developers",
+  "Intended Audience :: Science/Research",
+  "License :: OSI Approved :: MIT License",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+]
+dynamic = ["dependencies", "version"]
+keywords = ["jax", "pytree", "neural networks", "deep learning"]
+readme = "README.md"
+requires-python = ">=3.9"
+
+[project.optional-dependencies]
+dev = [
+  "pytest",
+  "ruff",
+]
+
+[project.urls]
+documentation = "https://inox.readthedocs.io"
+source = "https://github.com/francois-rozet/inox"
+tracker = "https://github.com/francois-rozet/inox/issues"
+
+[tool.setuptools.dynamic]
+dependencies = {file = "requirements.txt"}
+version = {attr = "inox.__version__"}
