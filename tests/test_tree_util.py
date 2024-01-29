@@ -1,15 +1,13 @@
 r"""Tests for the inox.tree_util module."""
 
-import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import pickle
 import pytest
 
+from inox.tree_util import *
 from jax import Array
 from typing import *
-
-from inox.tree_util import *
 
 
 def tree_eq(x, y):
@@ -33,7 +31,7 @@ def test_Namespace():
     # Add
     x.c = True
 
-    assert x.c == True
+    assert x.c is True
 
     # Modify
     x.a = Namespace(d=None)

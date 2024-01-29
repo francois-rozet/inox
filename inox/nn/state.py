@@ -64,12 +64,11 @@ __all__ = [
     'export_state',
 ]
 
-import jax
 import jax.tree_util as jtu
 
 from typing import *
 
-from .module import Module
+# isort: local
 from ..tree_util import PyTree
 
 

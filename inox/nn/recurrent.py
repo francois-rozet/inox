@@ -13,6 +13,7 @@ import jax.numpy as jnp
 from jax import Array
 from typing import *
 
+# isort: local
 from .linear import Linear
 from .module import Module
 from ..random import get_rng

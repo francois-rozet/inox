@@ -1,7 +1,6 @@
 r"""Tests for the inox.debug module."""
 
 import jax
-import pytest
 
 from functools import partial
 from inox.debug import *

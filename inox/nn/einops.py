@@ -12,11 +12,11 @@ __all__ = [
 ]
 
 import einops
-import jax
 
 from jax import Array
 from typing import *
 
+# isort: local
 from .module import Module
 
 

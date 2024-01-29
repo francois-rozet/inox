@@ -93,11 +93,7 @@ def vectorize(
 
         def g(*args):
             ia, io = iter(args), iter(others)
-
-            args = (
-                next(io) if i in exclude else next(ia)
-                for i in range(len(args) + len(others))
-            )
+            args = (next(io if i in exclude else ia) for i in range(len(args) + len(others)))
 
             return f(*args, **kwargs)
 
@@ -113,10 +109,7 @@ def vectorize(
             squeezed.append(jax.numpy.squeeze(arg, axes))
 
         for i, size in enumerate(reversed(broadcast), start=1):
-            in_axes = [
-                None if len(shape) < i or shape[-i] == 1 else 0
-                for shape in shapes
-            ]
+            in_axes = [None if len(shape) < i or shape[-i] == 1 else 0 for shape in shapes]
 
             g = jax.vmap(g, in_axes=in_axes, axis_size=size)
 

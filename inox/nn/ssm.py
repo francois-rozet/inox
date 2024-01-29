@@ -13,6 +13,7 @@ import numpy as np
 from jax import Array
 from typing import *
 
+# isort: local
 from .module import Module, Parameter
 from ..random import get_rng
 
@@ -118,12 +119,8 @@ class S4(SISO):
         self.A_re = Parameter(jnp.log(-A.real))
         self.A_im = Parameter(A.imag)
         self.P = Parameter(P)
-        self.B = Parameter(
-            jax.random.normal(keys[0], (hid_features,), dtype=complex)
-        )
-        self.C = Parameter(
-            jax.random.normal(keys[1], (hid_features,), dtype=complex)
-        )
+        self.B = Parameter(jax.random.normal(keys[0], (hid_features,), dtype=complex))
+        self.C = Parameter(jax.random.normal(keys[1], (hid_features,), dtype=complex))
         self.log_dt = Parameter(
             jax.random.uniform(
                 keys[2],

@@ -4,7 +4,6 @@ __all__ = [
     'same_trace',
 ]
 
-import jax
 
 from jax import Array
 from jax.core import Tracer

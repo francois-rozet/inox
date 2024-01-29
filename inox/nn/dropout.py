@@ -10,6 +10,7 @@ import jax
 from jax import Array
 from typing import *
 
+# isort: local
 from .module import Module
 from ..random import get_rng
 

@@ -12,6 +12,7 @@ from functools import wraps
 from jax import Array
 from typing import *
 
+# isort: local
 from .module import Module
 from ..numpy import vectorize
 

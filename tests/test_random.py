@@ -4,9 +4,8 @@ import jax
 import pickle
 import pytest
 
-from typing import *
-
 from inox.random import *
+from typing import *
 
 
 @pytest.mark.parametrize('seed', [0, jax.random.key(0)])

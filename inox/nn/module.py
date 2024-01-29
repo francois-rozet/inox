@@ -55,12 +55,12 @@ __all__ = [
     'Parameter',
 ]
 
-import jax
 import jax.tree_util as jtu
 
 from jax import Array
 from typing import *
 
+# isort: local
 from ..tree_util import *
 from ..tree_util import PyTreeDef
 

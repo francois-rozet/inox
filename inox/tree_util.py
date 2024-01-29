@@ -11,7 +11,6 @@ __all__ = [
     'tree_repr',
 ]
 
-import jax
 import jax._src.tree_util as jtu
 import numpy as np
 
@@ -19,7 +18,6 @@ from jax import Array
 from textwrap import indent
 from typing import *
 from warnings import warn
-
 
 PyTree = TypeVar('PyTree', bound=Any)
 PyTreeDef = TypeVar('PyTreeDef')
@@ -152,11 +150,11 @@ class Static(metaclass=PyTreeMeta):
 
     def __init__(self, value: Hashable):
         if not isinstance(value, Hashable):
-            warn(f"considering a non-hashable object ('{type(value).__name__}') static could lead to frequent JIT recompilations.")
+            warn(f"considering a non-hashable object ('{type(value).__name__}') static could lead to frequent JIT recompilations.")  # fmt: off
 
         if callable(value):
             if '<lambda>' in value.__qualname__ or '<locals>' in value.__qualname__:
-                warn(f"considering a local function ('{value.__qualname__}') static could lead to frequent JIT recompilations.")
+                warn(f"considering a local function ('{value.__qualname__}') static could lead to frequent JIT recompilations.")  # fmt: off
 
         self.value = value
 
@@ -346,11 +344,7 @@ def tree_combine(
     """
 
     missing = []
-    leaves = {
-        key: leaf
-        for partition in leaves
-        for key, leaf in partition.items()
-    }
+    leaves = {key: leaf for partition in leaves for key, leaf in partition.items()}
 
     def f(path, leaf):
         key = jtu.keystr(path)
@@ -418,8 +412,7 @@ def tree_repr(
         if hasattr(tree, '_fields'):
             bra, ket = f'{type(tree).__name__}(', ')'
             lines = [
-                f'{field}={tree_repr(value, **kwargs)}'
-                for field, value in tree._asdict().items()
+                f'{field}={tree_repr(value, **kwargs)}' for field, value in tree._asdict().items()
             ]
         else:
             bra, ket = '(', ')'
@@ -429,10 +422,7 @@ def tree_repr(
         lines = [tree_repr(x, **kwargs) for x in tree]
     elif isinstance(tree, dict):
         bra, ket = '{', '}'
-        lines = [
-            f'{repr(key)}: {tree_repr(value, **kwargs)}'
-            for key, value in tree.items()
-        ]
+        lines = [f'{repr(key)}: {tree_repr(value, **kwargs)}' for key, value in tree.items()]
     elif is_array(tree) and typeonly:
         return f'{tree.dtype}{list(tree.shape)}'
     else:

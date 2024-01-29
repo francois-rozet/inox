@@ -12,6 +12,7 @@ from contextlib import contextmanager
 from jax import Array
 from typing import *
 
+# isort: local
 from .debug import same_trace
 from .tree_util import Namespace
 
@@ -67,7 +68,9 @@ class PRNG(Namespace):
         else:
             keys = jax.random.split(self.state, num=num + 1)
 
-        assert same_trace(self.state, keys), "the PRNG was initialized and used within different JIT traces."
+        assert same_trace(
+            self.state, keys
+        ), "the PRNG was initialized and used within different JIT traces."
 
         if num is None:
             key, self.state = keys

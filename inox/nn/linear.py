@@ -12,6 +12,7 @@ import math
 from jax import Array
 from typing import *
 
+# isort: local
 from .module import Module, Parameter
 from ..numpy import flatten, unflatten
 from ..random import get_rng

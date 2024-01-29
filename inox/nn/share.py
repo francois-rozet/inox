@@ -52,11 +52,11 @@ __all__ = [
     'Reference',
 ]
 
-import jax
 import jax.tree_util as jtu
 
 from typing import *
 
+# isort: local
 from .module import Module
 from ..tree_util import tree_repr
 

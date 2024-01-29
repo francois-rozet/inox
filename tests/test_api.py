@@ -1,8 +1,5 @@
 r"""Tests for the inox.api module."""
 
-import jax
-import pytest
-
 from functools import partial
 from inox.api import *
 from inox.api import inner, outer
@@ -19,7 +16,7 @@ def test_automask():
         return x
 
     def is_not_static(x):
-        assert not type(x) is Static
+        assert type(x) is not Static
         return x
 
     def is_sub_static(x):
@@ -34,7 +31,8 @@ def test_automask():
     assert is_not_static(outer(is_static)(Static('leaf')))
     assert is_sub_static(outer(is_sub_static)(SubStatic('leaf')))
 
-    def f(x): return x
+    def f(x):
+        return x
 
     assert outer(inner(f)) is f
     assert inner(outer(f)) is f

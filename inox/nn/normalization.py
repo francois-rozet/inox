@@ -13,6 +13,7 @@ from einops import rearrange
 from jax import Array
 from typing import *
 
+# isort: local
 from .module import Module
 from .state import StateEntry, update_state
 

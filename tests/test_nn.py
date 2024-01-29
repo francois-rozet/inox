@@ -1,16 +1,17 @@
 r"""Tests for the inox.nn module."""
 
+# ruff: noqa: F841
+
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
 import pickle
 import pytest
 
-from jax import Array
-from typing import *
-
 from inox import api
 from inox.nn import *
+from jax import Array
+from typing import *
 
 
 def test_Module():
@@ -157,7 +158,7 @@ def test_BatchNorm():
 
         return jnp.mean((z - y) ** 2), state
 
-    l, state = loss(model, state)
+    value, state = loss(model, state)
 
     # Partition
     static, params, others = model.partition(Parameter)
@@ -168,7 +169,10 @@ def test_BatchNorm():
     assert isinstance(static, Hashable)
 
     # Gradients
-    grads, state = api.grad(lambda params: loss(static(params, others), state), has_aux=True)(params)
+    def ell(params):
+        return loss(static(params, others), state)
+
+    grads, state = api.grad(ell, has_aux=True)(params)
 
     # Print
     assert repr(model)

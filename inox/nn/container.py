@@ -4,11 +4,11 @@ __all__ = [
     'Sequential',
 ]
 
-import jax
 
 from textwrap import indent
 from typing import *
 
+# isort: local
 from .module import Module
 from ..tree_util import tree_repr
 
