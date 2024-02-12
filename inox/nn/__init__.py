@@ -5,6 +5,7 @@ from .attention import *
 from .container import *
 from .dropout import *
 from .einops import *
+from .interpolation import *
 from .linear import *
 from .module import *
 from .normalization import *
