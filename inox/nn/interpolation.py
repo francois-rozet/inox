@@ -44,7 +44,7 @@ class Resample(Module):
 
         assert x.ndim >= self.ndim
 
-        shape = x.shape[-self.ndim:]
+        shape = x.shape[-self.ndim :]
         shape = [math.floor(r * h) for r, h in zip(self.factor, shape)]
 
         resize = partial(jax.image.resize, shape=shape, **self.kwargs)
