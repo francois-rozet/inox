@@ -13,5 +13,6 @@ from .padding import *
 from .pooling import *
 from .recurrent import *
 from .share import *
+from .spectral import *
 from .ssm import *
 from .state import *
