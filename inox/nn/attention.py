@@ -55,7 +55,7 @@ class MultiheadAttention(Module):
     r"""Creates a multihead attention layer.
 
     .. math:: Y = \sum_i
-        \mathrm{attention}(X_q W_q^i + b_q^i, X_k W_k^i + b_k^i, X_v W_v^i) W_y^i + b_y
+        \mathrm{attention}(X_q W_q^i + b_q^i, X_k W_k^i + b_k^i, X_v W_v^i + b_y^i) W_y^i
 
     where
 
@@ -75,7 +75,7 @@ class MultiheadAttention(Module):
             If :py:`None`, :math:`C' = C`.
         hid_features: The number of hidden features :math:`H` per head.
             If :py:`None`, :math:`H = \frac{C}{N}`.
-        bias: Whether the layer learns additive biases :math:`(b_q, b_k, b_y)` or not.
+        bias: Whether the layer learns additive biases :math:`(b_q, b_k, b_v)` or not.
         causal: Whether the attention mask is causal or not. If :py:`True`, the
             :math:`i`-th query is only allowed to attend the :math:`j`-th key if
             :math:`j - i \leq T - S`.
@@ -108,8 +108,8 @@ class MultiheadAttention(Module):
 
         self.lin_q = Linear(in_features, hid_features * heads, bias, key=keys[0])
         self.lin_k = Linear(in_features, hid_features * heads, bias, key=keys[1])
-        self.lin_v = Linear(in_features, hid_features * heads, False, key=keys[2])
-        self.lin_y = Linear(hid_features * heads, out_features, bias, key=keys[3])
+        self.lin_v = Linear(in_features, hid_features * heads, bias, key=keys[2])
+        self.lin_y = Linear(hid_features * heads, out_features, False, key=keys[3])
 
         self.heads = heads
         self.causal = causal

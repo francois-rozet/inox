@@ -7,6 +7,7 @@ __all__ = [
 ]
 
 import jax
+import jax.numpy as jnp
 import math
 
 from jax import Array
@@ -39,30 +40,21 @@ class Linear(Module):
         key: Array = None,
     ):
         if key is None:
-            keys = get_rng().split(2)
-        else:
-            keys = jax.random.split(key, 2)
+            key = get_rng().split()
 
-        bound = 1 / math.sqrt(in_features)
+        scale = 1 / math.sqrt(in_features)
 
         self.weight = Parameter(
             jax.random.uniform(
-                key=keys[0],
+                key,
                 shape=(in_features, out_features),
-                minval=-bound,
-                maxval=bound,
+                minval=-scale,
+                maxval=scale,
             )
         )
 
         if bias:
-            self.bias = Parameter(
-                jax.random.uniform(
-                    key=keys[1],
-                    shape=(out_features,),
-                    minval=-bound,
-                    maxval=bound,
-                )
-            )
+            self.bias = Parameter(jnp.zeros(out_features))
         else:
             self.bias = None
 
@@ -117,9 +109,7 @@ class Conv(Module):
         key: Array = None,
     ):
         if key is None:
-            keys = get_rng().split(2)
-        else:
-            keys = jax.random.split(key, 2)
+            key = get_rng().split()
 
         if isinstance(stride, int):
             stride = [stride] * len(kernel_size)
@@ -131,26 +121,19 @@ class Conv(Module):
             padding = [(padding, padding)] * len(kernel_size)
 
         in_channels = in_channels // groups
-        bound = 1 / math.sqrt(math.prod(kernel_size) * in_channels)
+        scale = 1 / math.sqrt(math.prod(kernel_size) * in_channels)
 
         self.kernel = Parameter(
             jax.random.uniform(
-                key=keys[0],
+                key,
                 shape=(*kernel_size, in_channels, out_channels),
-                minval=-bound,
-                maxval=bound,
+                minval=-scale,
+                maxval=scale,
             )
         )
 
         if bias:
-            self.bias = Parameter(
-                jax.random.uniform(
-                    key=keys[1],
-                    shape=(out_channels,),
-                    minval=-bound,
-                    maxval=bound,
-                )
-            )
+            self.bias = Parameter(jnp.zeros(out_channels))
         else:
             self.bias = None
 
