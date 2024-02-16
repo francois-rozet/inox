@@ -4,7 +4,7 @@ __all__ = [
     'Pad',
 ]
 
-import jax
+import jax.numpy as jnp
 
 from jax import Array
 from typing import Sequence, Tuple, Union
@@ -33,7 +33,7 @@ class Pad(Module):
     ):
         self.padding = padding
         self.mode = mode
-        self.value = jax.numpy.asarray(value)
+        self.value = jnp.asarray(value)
 
     def __call__(self, x: Array) -> Array:
         r"""
@@ -49,7 +49,7 @@ class Pad(Module):
             where :math:`p_i` is the total padding of the :math:`i`-th spatial axis.
         """
 
-        return vectorize(jax.numpy.pad, ndims=self.ndim)(
+        return vectorize(jnp.pad, ndims=self.ndim)(
             x,
             pad_width=(*self.padding, (0, 0)),
             mode=self.mode,

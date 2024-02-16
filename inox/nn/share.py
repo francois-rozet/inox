@@ -7,6 +7,11 @@ with :class:`Reference`.
 
 .. code-block:: python
 
+    import inox
+    import inox.nn
+    import jax
+    import jax.numpy as jnp
+
     class WeightSharingMLP(nn.Scope):
         def __init__(self, key):
             keys = jax.random.split(key, 3)
@@ -141,7 +146,7 @@ class Reference(NamedTuple):
         value: The value to reference.
 
     Example:
-        >>> weight = Reference('my-ref', Parameter(jnp.ones((3, 5))))
+        >>> weight = Reference('my-ref', Parameter(jax.random.ones((3, 5))))
         >>> weight  # repr preceded by an asterisk
         *Parameter(float[3, 5])
         >>> weight.shape

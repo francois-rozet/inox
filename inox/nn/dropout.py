@@ -6,6 +6,7 @@ __all__ = [
 ]
 
 import jax
+import jax.numpy as jnp
 
 from jax import Array
 from typing import Union
@@ -33,7 +34,7 @@ class Dropout(Module):
     """
 
     def __init__(self, p: Union[float, Array] = 0.5):
-        self.p = jax.numpy.asarray(p)
+        self.p = jnp.asarray(p)
 
     def __call__(self, x: Array, key: Array) -> Array:
         r"""
@@ -47,7 +48,7 @@ class Dropout(Module):
 
         mask = jax.random.bernoulli(key, 1 - self.p, shape=x.shape)
 
-        return jax.numpy.where(mask, x / (1 - self.p), 0)
+        return jnp.where(mask, x / (1 - self.p), 0)
 
 
 class TrainingDropout(Dropout):

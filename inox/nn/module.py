@@ -7,24 +7,24 @@ other modules. Parametric functions, such as neural networks, should subclass
 
 .. code-block:: python
 
-    import jax
-    import jax.random as jrd
     import inox
     import inox.nn as nn
+    import jax
+    import jax.numpy as jnp
 
     class Linear(nn.Module):
         def __init__(self, in_features, out_features, key):
-            keys = jrd.split(key, 2)
+            keys = jax.random.split(key, 2)
 
-            self.weight = Parameter(jrd.normal(keys[0], (in_features, out_features)))
-            self.bias = Parameter(jrd.normal(keys[1], (out_features,)))
+            self.weight = Parameter(jax.random.normal(keys[0], (in_features, out_features)))
+            self.bias = Parameter(jax.random.normal(keys[1], (out_features,)))
 
         def __call__(self, x):
             return x @ self.weight() + self.bias()
 
     class Classifier(nn.Module):
         def __init__(self, in_features, num_classes, key):
-            keys = jrd.split(key, 3)
+            keys = jax.random.split(key, 3)
 
             self.l1 = Linear(in_features, 64, key=keys[0])
             self.l2 = Linear(64, 64, key=keys[1])

@@ -9,10 +9,15 @@ modules and apply state updates.
 
 .. code-block:: python
 
+    import inox
+    import inox.nn as nn
+    import jax
+    import jax.numpy as jnp
+
     class Moments(nn.Module):
         def __init__(self, features):
-            self.first = nn.StateEntry(jax.numpy.zeros(features))
-            self.second = nn.StateEntry(jax.numpy.ones(features))
+            self.first = nn.StateEntry(jnp.zeros(features))
+            self.second = nn.StateEntry(jnp.ones(features))
 
         def __call__(self, x, state):
             first = state[self.first]
@@ -27,7 +32,7 @@ modules and apply state updates.
 
     class MLP(nn.Module):
         def __init__(self, in_features, num_classes, key):
-            keys = jrd.split(key, 3)
+            keys = jax.random.split(key, 3)
 
             self.in_stats = Moments(in_features)
             self.out_stats = Moments(num_classes)

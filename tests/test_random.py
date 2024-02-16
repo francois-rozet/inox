@@ -1,6 +1,7 @@
 r"""Tests for the inox.random module."""
 
 import jax
+import jax.numpy as jnp
 import pickle
 import pytest
 
@@ -17,13 +18,13 @@ def test_PRNG(seed):
     assert rng.split().shape == shape
     assert rng.split(3).shape == (3, *shape)
 
-    assert not jax.numpy.allclose(rng.split(), rng.split())
+    assert not jnp.allclose(rng.split(), rng.split())
 
     # Sample
     assert rng.normal().shape == ()
     assert rng.uniform(shape=(2, 3)).shape == (2, 3)
 
-    assert not jax.numpy.allclose(rng.normal(), rng.normal())
+    assert not jnp.allclose(rng.normal(), rng.normal())
 
     # Detect JIT
     with pytest.raises(AssertionError):

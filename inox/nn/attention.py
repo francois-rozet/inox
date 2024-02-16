@@ -5,6 +5,7 @@ __all__ = [
 ]
 
 import jax
+import jax.numpy as jnp
 import math
 
 from einops import rearrange
@@ -39,15 +40,15 @@ def attention(
 
     C = q.shape[-1]
 
-    weight = jax.numpy.einsum('...ik,...jk->...ij', q, k)
+    weight = jnp.einsum('...ik,...jk->...ij', q, k)
     weight = weight / math.sqrt(C)
 
     if mask is not None:
-        weight = jax.numpy.where(mask, weight, -1e9)
+        weight = jnp.where(mask, weight, -1e9)
 
     attn = jax.nn.softmax(weight, axis=-1)
 
-    return jax.numpy.einsum('...ij,...jk->...ik', attn, v)
+    return jnp.einsum('...ij,...jk->...ik', attn, v)
 
 
 class MultiheadAttention(Module):
@@ -112,7 +113,7 @@ class MultiheadAttention(Module):
 
         self.heads = heads
         self.causal = causal
-        self.dropout = jax.numpy.asarray(dropout)
+        self.dropout = jnp.asarray(dropout)
 
     def __call__(
         self,
@@ -156,12 +157,12 @@ class MultiheadAttention(Module):
         # Mask
         if self.causal:
             if mask is None:
-                mask = jax.numpy.ones((S, T), dtype=bool)
+                mask = jnp.ones((S, T), dtype=bool)
 
-            mask = jax.numpy.tril(mask, T - S)
+            mask = jnp.tril(mask, T - S)
 
         if key is not None:
-            shape = jax.numpy.broadcast_shapes(
+            shape = jnp.broadcast_shapes(
                 (*q.shape[:-2], S, 1),
                 (*k.shape[:-2], 1, T),
                 (S, T) if mask is None else mask.shape,
@@ -172,7 +173,7 @@ class MultiheadAttention(Module):
             if mask is None:
                 mask = keep
             else:
-                mask = jax.numpy.logical_and(mask, keep)
+                mask = jnp.logical_and(mask, keep)
 
         # Attention
         y = attention(q, k, v, mask)

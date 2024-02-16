@@ -7,6 +7,7 @@ __all__ = [
 ]
 
 import jax
+import jax.numpy as jnp
 
 from functools import wraps
 from jax import Array
@@ -89,7 +90,7 @@ def vectorize(
     @wraps(f)
     def wrapped(*args, **kwargs):
         others = [arg for i, arg in enumerate(args) if i in exclude]
-        args = [jax.numpy.asarray(arg) for i, arg in enumerate(args) if i not in exclude]
+        args = [jnp.asarray(arg) for i, arg in enumerate(args) if i not in exclude]
 
         def g(*args):
             ia, io = iter(args), iter(others)
@@ -101,12 +102,12 @@ def vectorize(
         assert all(0 <= ndim <= arg.ndim for arg, ndim in zip(args, ndims))
 
         shapes = [arg.shape[: arg.ndim - ndim] for arg, ndim in zip(args, ndims)]
-        broadcast = jax.numpy.broadcast_shapes(*shapes)
+        broadcast = jnp.broadcast_shapes(*shapes)
         squeezed = []
 
         for arg, shape in zip(args, shapes):
             axes = [i for i, size in enumerate(shape) if size == 1]
-            squeezed.append(jax.numpy.squeeze(arg, axes))
+            squeezed.append(jnp.squeeze(arg, axes))
 
         for i, size in enumerate(reversed(broadcast), start=1):
             in_axes = [None if len(shape) < i or shape[-i] == 1 else 0 for shape in shapes]

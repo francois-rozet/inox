@@ -17,6 +17,7 @@ __all__ = [
 ]
 
 import jax
+import jax.numpy as jnp
 
 from jax import Array
 from typing import Sequence, Union
@@ -49,7 +50,7 @@ class Tanh(Activation):
     """
 
     def __call__(self, x: Array) -> Array:
-        return jax.numpy.tanh(x)
+        return jnp.tanh(x)
 
 
 class Sigmoid(Activation):
@@ -114,7 +115,7 @@ class LeakyReLU(Activation):
     """
 
     def __init__(self, alpha: Union[float, Array] = 0.01):
-        self.alpha = jax.numpy.asarray(alpha)
+        self.alpha = jnp.asarray(alpha)
 
     def __call__(self, x: Array) -> Array:
         return jax.nn.leaky_relu(x, self.alpha)
@@ -140,7 +141,7 @@ class ELU(Activation):
     """
 
     def __init__(self, alpha: Union[float, Array] = 1.0):
-        self.alpha = jax.numpy.asarray(alpha)
+        self.alpha = jnp.asarray(alpha)
 
     def __call__(self, x: Array) -> Array:
         return jax.nn.elu(x)
