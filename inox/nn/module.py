@@ -53,12 +53,15 @@ __all__ = [
     'Module',
     'ModuleDef',
     'Parameter',
+    'ComplexParameter',
 ]
 
+import jax
+import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from jax import Array
-from typing import Any, Callable, Dict, NamedTuple, Tuple, Union
+from typing import Any, Callable, Dict, Tuple, Union
 
 # isort: local
 from ..tree_util import (
@@ -177,7 +180,7 @@ class ModuleDef(Static):
         return self.value
 
 
-class Parameter(NamedTuple):
+class Parameter(Namespace):
     r"""Wrapper to indicate an optimizable array.
 
     All arrays that require gradient updates in a :class:`Module` should be wrapped in a
@@ -189,11 +192,13 @@ class Parameter(NamedTuple):
     Example:
         >>> weight = Parameter(jax.numpy.ones((3, 5))); weight
         Parameter(float32[3, 5])
-        >>> def linear(x):
-        ...     return x @ weight()
+        >>> y = x @ weight()
     """
 
-    value: Array
+    value: Array = None
+
+    def __init__(self, value: Array):
+        self.value = jnp.asarray(value)
 
     def __call__(self) -> Array:
         r"""
@@ -211,3 +216,30 @@ class Parameter(NamedTuple):
 
     def tree_repr(self, **kwargs) -> str:
         return f'{self.__class__.__name__}({tree_repr(self.value, **kwargs)})'
+
+
+class ComplexParameter(Parameter):
+    r"""Wrapper to indicate an optimizable complex array.
+
+    The real and imaginary parts are stored as separate floating point arrays to enable
+    gradient-based optimization.
+
+    Arguments:
+        value: A complex array.
+
+    Example:
+        >>> value = jax.numpy.ones((3, 5)) + 1j * jax.numpy.zeros((3, 5))
+        >>> weight = ComplexParameter(value); weight
+        ComplexParameter(complex64[3, 5])
+        >>> y = x @ weight()
+    """
+
+    def __init__(self, value: Array):
+        value = jnp.asarray(value)
+
+        self.real = value.real
+        self.imag = value.imag
+
+    @property
+    def value(self) -> Array:
+        return jax.lax.complex(self.real, self.imag)

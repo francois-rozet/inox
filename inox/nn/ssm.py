@@ -14,7 +14,7 @@ from jax import Array
 from typing import Tuple
 
 # isort: local
-from .module import Module, Parameter
+from .module import ComplexParameter, Module, Parameter
 from ..random import get_rng
 
 
@@ -47,18 +47,16 @@ class SISO(Module):
 
     Wikipedia:
         https://wikipedia.org/wiki/State-space_representation
-
-    See also:
-        :class:`S4`
     """
 
     def __call__(self, u: Array) -> Array:
         r"""
         Arguments:
-            u: A sequence of input scalars :math:`u_{1:L}`, with shape :math:`(*, L)`.
+            u: The input signal :math:`u_{1:L}`, with shape :math:`(*, L)`.
+                Floating point arrays are promoted to complex arrays.
 
         Returns:
-            The sequence of output scalars :math:`y_{1:L}`, with shape :math:`(*, L)`.
+            The output signal :math:`y_{1:L}`, with shape :math:`(*, L)`.
         """
 
         L = u.shape[-1]
@@ -85,6 +83,18 @@ class SISO(Module):
         """
 
         raise NotImplementedError()
+
+
+class Eigenvalue(ComplexParameter):
+    r"""Wrapper to indicate an optimizable eigenvalue array."""
+
+    def __init__(self, real: Array, imag: Array):
+        self.log_real = jnp.log(-real)
+        self.imag = imag
+
+    @property
+    def real(self) -> Array:
+        return -jnp.exp(self.log_real)
 
 
 class S4(SISO):
@@ -116,15 +126,27 @@ class S4(SISO):
 
         A, P = S4.DPLR_HiPPO(hid_features)
 
-        self.A_re = Parameter(jnp.log(-A.real))
-        self.A_im = Parameter(A.imag)
-        self.P = Parameter(P)
-        self.B = Parameter(jax.random.normal(keys[0], (hid_features,), dtype=complex))
-        self.C = Parameter(jax.random.normal(keys[1], (hid_features,), dtype=complex))
+        self.A = Eigenvalue(A)
+        self.P = ComplexParameter(P)
+        self.B = ComplexParameter(
+            jax.random.normal(
+                keys[0],
+                shape=(hid_features,),
+                dtype=complex,
+            )
+        )
+        self.C = ComplexParameter(
+            jax.random.normal(
+                keys[1],
+                shape=(hid_features,),
+                dtype=complex,
+            )
+            / math.sqrt(hid_features)
+        )
         self.log_dt = Parameter(
             jax.random.uniform(
                 keys[2],
-                (),
+                shape=(),
                 minval=math.log(1e-3),
                 maxval=math.log(1e-1),
             )
@@ -152,11 +174,10 @@ class S4(SISO):
         # Project P
         P = V.T.conj() @ P
 
-        return jnp.asarray(A), jnp.asarray(P)
+        return A, P
 
     def discrete(self) -> Tuple[Array, Array, Array]:
-        A = -jnp.exp(self.A_re()) + 1j * self.A_im()
-        P, B, C = self.P(), self.B(), self.C()
+        A, P, B, C = self.A(), self.P(), self.B(), self.C()
         dt = jnp.exp(self.log_dt())
 
         D = jnp.diag(1 / (2 / dt - A))
@@ -170,8 +191,7 @@ class S4(SISO):
         return Ab, Bb, C
 
     def kernel(self, length: int) -> Array:
-        A = -jnp.exp(self.A_re()) + 1j * self.A_im()
-        P, B, C = self.P(), self.B(), self.C()
+        A, P, B, C = self.A(), self.P(), self.B(), self.C()
         dt = jnp.exp(self.log_dt())
 
         # \tilde{C}
@@ -194,6 +214,6 @@ class S4(SISO):
 
         # Kernel
         k = 2 / (1 + z) * (k00 - k01 / (1 + k11) * k10)
-        k = jnp.fft.ifft(k).real
+        k = jnp.fft.ifft(k)
 
         return k
