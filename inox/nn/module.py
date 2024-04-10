@@ -234,6 +234,9 @@ class ComplexParameter(Parameter):
         >>> y = x @ weight()
     """
 
+    real: Array = None
+    imag: Array = None
+
     def __init__(self, value: Array):
         value = jnp.asarray(value)
 
@@ -242,4 +245,7 @@ class ComplexParameter(Parameter):
 
     @property
     def value(self) -> Array:
-        return jax.lax.complex(self.real, self.imag)
+        if self.real is None or self.imag is None:
+            return None
+        else:
+            return jax.lax.complex(self.real, self.imag)

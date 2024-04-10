@@ -19,6 +19,7 @@ def test_Module():
         c=[jnp.arange(2), 'three'],
         d=False,
         e=Module(f=jnp.zeros(5), g=range(6)),
+        h=ComplexParameter(7.0 + 8.0j),
     )
 
     # Flatten
@@ -40,7 +41,7 @@ def test_Module():
     ## filters
     static, params, others = module.partition(Parameter)
 
-    assert all(key.endswith('.value') for key in params)
+    assert all(key.endswith(('.value', '.real', '.imag')) for key in params)
     assert all(isinstance(leaf, Array) for leaf in params.values())
     assert all(isinstance(leaf, Array) for leaf in others.values())
     assert isinstance(static, Hashable)
