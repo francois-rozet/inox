@@ -55,7 +55,7 @@ class MultiheadAttention(Module):
     r"""Creates a multihead attention layer.
 
     .. math:: Y = \sum_i
-        \mathrm{attention}(X_q W_q^i + b_q^i, X_k W_k^i + b_k^i, X_v W_v^i + b_y^i) W_y^i
+        \mathrm{attention}(X_q W_q^i + b_q^i, X_k W_k^i + b_k^i, X_v W_v^i + b_v^i) W_y^i
 
     where
 
