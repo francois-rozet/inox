@@ -70,9 +70,12 @@ class Namespace(metaclass=PyTreeMeta):
         return tree_repr(self)
 
     def tree_repr(self, **kwargs) -> str:
+        private = kwargs.get('private', False)
+
         lines = (
             f'{name} = {tree_repr(getattr(self, name), **kwargs)}'
             for name in sorted(self.__dict__.keys())
+            if not name.startswith('_') or private
         )
 
         lines = ',\n'.join(lines)
