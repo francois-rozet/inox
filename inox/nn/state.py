@@ -5,7 +5,11 @@ often lead to silent errors around JAX transformations. Instead, it is safer to
 externalize the state of modules and handle mutations explicitely.
 
 The :mod:`inox.nn.state` module provides a simple interface to declare the state of
-modules and apply state updates.
+modules and apply state updates. During initialization, mutable arrays are wrapped in
+:class:`StateEntry` instances. After initialization, these arrays are pulled out and
+replaced with hashable :class:`StateKey` instances using the :func:`export_state`
+function. The state is represented by a dictionary which is used and updated during the
+module's execution.
 
 .. code-block:: python
 
