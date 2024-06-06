@@ -63,7 +63,7 @@ import jax.tree_util as jtu
 from jax import Array
 from typing import Any, Callable, Dict, Tuple, Union
 
-# isort: local
+# isort: split
 from ..tree_util import (
     Namespace,
     PyTreeDef,

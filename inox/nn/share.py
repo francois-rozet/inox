@@ -61,7 +61,7 @@ import jax.tree_util as jtu
 
 from typing import Any, Hashable, NamedTuple
 
-# isort: local
+# isort: split
 from .module import Module
 from ..tree_util import tree_repr
 

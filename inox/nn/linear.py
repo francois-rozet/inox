@@ -13,7 +13,7 @@ import math
 from jax import Array
 from typing import Sequence, Tuple, Union
 
-# isort: local
+# isort: split
 from .module import Module, Parameter
 from ..numpy import vectorize
 from ..random import get_rng

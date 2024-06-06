@@ -9,7 +9,7 @@ import jax.numpy as jnp
 from jax import Array
 from typing import Sequence, Tuple, Union
 
-# isort: local
+# isort: split
 from .module import Module
 from ..numpy import vectorize
 

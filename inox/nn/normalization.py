@@ -13,7 +13,7 @@ from einops import rearrange
 from jax import Array
 from typing import Dict, NamedTuple, Sequence, Tuple, Union
 
-# isort: local
+# isort: split
 from .module import Module
 from .state import StateEntry, update_state
 

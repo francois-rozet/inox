@@ -13,7 +13,7 @@ import numpy as np
 from jax import Array
 from typing import Tuple
 
-# isort: local
+# isort: split
 from .module import ComplexParameter, Module, Parameter
 from ..random import get_rng
 
