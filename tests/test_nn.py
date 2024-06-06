@@ -110,7 +110,7 @@ def test_MLP(norm: str):
 
     # Gradients
     grads = api.grad(lambda params: loss(static(params, others)))(params)
-    params = jax.tree_map(lambda x, y: x + y, params, grads)
+    params = jtu.tree_map(lambda x, y: x + y, params, grads)
 
     # Print
     assert repr(model)
@@ -146,7 +146,7 @@ def test_BatchNorm():
     z, new = model(x, state)
 
     assert z.shape == y.shape
-    assert not any(jtu.tree_leaves(jax.tree_map(jnp.allclose, new, state)))
+    assert not any(jtu.tree_leaves(jtu.tree_map(jnp.allclose, new, state)))
 
     with pytest.raises(TypeError):
         model(x, None)
@@ -179,7 +179,7 @@ def test_BatchNorm():
         return loss(static(params, others), state)
 
     grads, state = api.grad(ell, has_aux=True)(params)
-    params = jax.tree_map(lambda x, y: x + y, params, grads)
+    params = jtu.tree_map(lambda x, y: x + y, params, grads)
 
     # Print
     assert repr(model)
@@ -244,7 +244,7 @@ def test_share():
 
     # Gradients
     grads = api.grad(lambda params: loss(static(params, others)))(params)
-    params = jax.tree_map(lambda x, y: x + y, params, grads)
+    params = jtu.tree_map(lambda x, y: x + y, params, grads)
 
     # Print
     assert repr(model)
