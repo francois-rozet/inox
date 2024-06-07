@@ -59,11 +59,11 @@ __all__ = [
 
 import jax.tree_util as jtu
 
-from typing import Any, Hashable, NamedTuple
+from typing import Any, Hashable
 
 # isort: split
 from .module import Module
-from ..tree_util import tree_repr
+from ..tree_util import PyTreeMeta, tree_repr
 
 
 class Scope(Module):
@@ -90,10 +90,10 @@ class Scope(Module):
             def f(x):
                 if isinstance(x, Reference):
                     if x.tag in visited:
-                        x = x._replace(value=None)
+                        x = Reference(x.tag, None)
                     else:
                         visited.add(x.tag)
-                        x = x._replace(value=prune(x.value))
+                        x = Reference(x.tag, prune(x.value))
 
                 return x
 
@@ -115,7 +115,7 @@ class Scope(Module):
                         x = visited[x.tag]
                     else:
                         visited[x.tag] = x
-                        x = x._replace(value=unprune(x.value))
+                        x = Reference(x.tag, unprune(x.value))
 
                 return x
 
@@ -131,12 +131,12 @@ class Scope(Module):
         return super().tree_repr(**kwargs)
 
 
-class Reference(NamedTuple):
+class Reference(metaclass=PyTreeMeta):
     r"""Creates a reference to a value.
 
-    A :class:`Reference` instance forwards :py:`__call__` and  :py:`__getattr__`
-    operations to the value it references. For indexing (:py:`__getitem__`) or
-    arithmetic operations (`+`, `*`, ...), use :py:`ref.value` directly instead.
+    A :class:`Reference` instance forwards :py:`__call__`,  :py:`__getattr__`, and
+    :py:`__getitem__` operations to the value it references. For arithmetic operations
+    (`+`, `*`, ...), use :py:`ref.value` directly instead.
 
     See also:
         :class:`Scope`
@@ -157,20 +157,38 @@ class Reference(NamedTuple):
                [1., 1., 1., 1., 1.]], dtype=float32)
     """
 
-    tag: Hashable
-    value: Any
+    value: Any = None
+
+    def __init__(self, tag: Hashable, value: Any):
+        self.tag = tag
+        self.value = value
 
     def __call__(self, *args, **kwargs) -> Any:
         return self.value(*args, **kwargs)
 
-    def __delattr__(self, name: str) -> None:
-        return delattr(self.value, name)
+    def __delattr__(self, name: str):
+        if name in ('tag', 'value'):
+            object.__delattr__(self, name)
+        else:
+            delattr(self.value, name)
+
+    def __delitem__(self, key: Hashable):
+        del self.value[key]
 
     def __getattr__(self, name: str) -> Any:
         return getattr(self.value, name)
 
+    def __getitem__(self, key: Hashable):
+        return self.value[key]
+
     def __setattr__(self, name: str, value: Any):
-        return setattr(self.value, name, value)
+        if name in ('tag', 'value'):
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self.value, name, value)
+
+    def __setitem__(self, key: Hashable, value: Any):
+        self.value[key] = value
 
     def __repr__(self) -> str:
         return self.tree_repr()
@@ -183,3 +201,17 @@ class Reference(NamedTuple):
         else:
             references.add(self.tag)
             return f'*{tree_repr(self.value, **kwargs)}'
+
+    def tree_flatten(self):
+        return [self.value], self.tag
+
+    def tree_flatten_with_keys(self):
+        return [(jtu.GetAttrKey('value'), self.value)], self.tag
+
+    @classmethod
+    def tree_unflatten(cls, tag, children):
+        self = object.__new__(cls)
+        self.tag = tag
+        self.value = children[0]
+
+        return self

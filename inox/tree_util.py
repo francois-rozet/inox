@@ -11,6 +11,7 @@ __all__ = [
     'tree_repr',
 ]
 
+import dataclasses
 import jax._src.tree_util as jtu
 import numpy as np
 
@@ -154,8 +155,7 @@ class Static(metaclass=PyTreeMeta):
     def __init__(self, value: Hashable):
         if not isinstance(value, Hashable):
             warn(f"considering a non-hashable object ('{type(value).__name__}') static could lead to frequent JIT recompilations.")  # fmt: off
-
-        if callable(value):
+        elif callable(value):
             if '<lambda>' in value.__qualname__ or '<locals>' in value.__qualname__:
                 warn(f"considering a local function ('{value.__qualname__}') static could lead to frequent JIT recompilations.")  # fmt: off
 
@@ -263,7 +263,8 @@ def tree_partition(
 
     The leaves are partitioned into a set of path-leaf mappings. Each mapping contains
     the leaves of the subset of nodes satisfying the corresponding filtering constraint.
-    The last mapping is dedicated to leaves that do not satisfy any constraint.
+    If a leaf satisfies several constraints, the first one is selected. The last mapping
+    is dedicated to leaves that do not satisfy any constraint.
 
     See also:
         :func:`tree_combine`
@@ -298,22 +299,37 @@ def tree_partition(
         else:
             return filtr
 
-    predicates = list(map(factory, filters))
+    filters = list(map(factory, filters))
 
     if is_leaf is None:
-        is_node = lambda x: any(p(x) for p in predicates)
+        is_node = lambda x, prefix: any(filtr(x) for filtr in prefix)
     else:
-        is_node = lambda x: any(p(x) for p in predicates) or is_leaf(x)
+        is_node = lambda x, prefix: any(filtr(x) for filtr in prefix) or is_leaf(x)
 
-    for path, node in jtu.tree_leaves_with_path(tree, is_node):
-        for i, p in enumerate(predicates):
-            if p(node):
-                break
+    def color(x, prefix=None):
+        if prefix is None:
+            i = len(filters)
         else:
-            i = -1
+            for i, filtr in enumerate(prefix):
+                if filtr(x):
+                    break
+            else:
+                return len(prefix)
 
-        for subpath, leaf in jtu.tree_leaves_with_path(node, is_leaf):
-            leaves[i][jtu.keystr(path + subpath)] = leaf
+        prefix = filters[:i]
+
+        return jtu.tree_map(
+            f=lambda x: color(x, prefix),
+            tree=x,
+            is_leaf=lambda x: is_node(x, prefix),
+        )
+
+    labels = color(tree)
+
+    def f(path, leaf, label):
+        leaves[label][jtu.keystr(path)] = leaf
+
+    jtu.tree_map_with_path(f, tree, labels, is_leaf=is_leaf)
 
     return treedef, *leaves
 
@@ -411,6 +427,13 @@ def tree_repr(
 
     if hasattr(tree, 'tree_repr'):
         return tree.tree_repr(**kwargs)
+    elif dataclasses._is_dataclass_instance(tree):
+        bra, ket = f'{type(tree).__name__}(', ')'
+        lines = [
+            f'{field.name}={tree_repr(getattr(tree, field.name), **kwargs)}'
+            for field in dataclasses.fields(tree)
+            if field.repr
+        ]
     elif isinstance(tree, tuple):
         if hasattr(tree, '_fields'):
             bra, ket = f'{type(tree).__name__}(', ')'

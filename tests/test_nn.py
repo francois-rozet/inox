@@ -3,12 +3,13 @@ r"""Tests for the inox.nn module."""
 import jax
 import jax.numpy as jnp
 import jax.tree_util as jtu
+import numpy as np
 import pickle
 import pytest
 
 from inox import api
 from inox.nn import *
-from jax import Array
+from inox.tree_util import is_array
 from typing import *
 
 
@@ -18,14 +19,14 @@ def test_Module():
         b=Parameter(jnp.ones(1)),
         c=[jnp.arange(2), 'three'],
         d=False,
-        e=Module(f=jnp.zeros(5), g=range(6)),
+        e=Module(f=np.zeros(5), g=range(6)),
         h=ComplexParameter(7.0 + 8.0j),
     )
 
     # Flatten
     leaves, treedef = jtu.tree_flatten(module)
 
-    assert not all(isinstance(leaf, Array) for leaf in leaves)
+    assert not all(map(is_array, leaves))
     assert isinstance(treedef, Hashable)
 
     jtu.tree_unflatten(treedef, leaves)
@@ -33,18 +34,18 @@ def test_Module():
     # Partition
     static, arrays = module.partition()
 
-    assert all(isinstance(leaf, Array) for leaf in arrays.values())
-    assert isinstance(static, Hashable)
+    assert all(map(is_array, arrays.values()))
+    assert not any(map(is_array, jtu.tree_leaves(static)))
 
     static(arrays)
 
-    ## filters
+    ## filters (type)
     static, params, others = module.partition(Parameter)
 
     assert all(key.endswith(('.value', '.real', '.imag')) for key in params)
-    assert all(isinstance(leaf, Array) for leaf in params.values())
-    assert all(isinstance(leaf, Array) for leaf in others.values())
-    assert isinstance(static, Hashable)
+    assert all(map(is_array, params.values()))
+    assert all(map(is_array, others.values()))
+    assert not any(map(is_array, jtu.tree_leaves(static)))
 
     static(params, others)
 
@@ -53,6 +54,17 @@ def test_Module():
 
     with pytest.raises(KeyError):
         static(params, others, {'none': None})
+
+    ## filters (callable)
+    module.e.frozen = True
+
+    static, frozen, others = module.partition(lambda x: getattr(x, 'frozen', False))
+
+    assert all('.e' in key for key in frozen)
+    assert all('.e' not in key for key in others)
+    assert all(map(is_array, frozen.values()))
+    assert all(map(is_array, others.values()))
+    assert not any(map(is_array, jtu.tree_leaves(static)))
 
     # Pickle
     data = pickle.dumps(module)
@@ -104,9 +116,9 @@ def test_MLP(norm: str):
     static, params, others = model.partition(Parameter)
 
     assert all(key.endswith('.value') for key in params)
-    assert all(isinstance(leaf, Array) for leaf in params.values())
-    assert all(isinstance(leaf, Array) for leaf in others.values())
-    assert isinstance(static, Hashable)
+    assert all(map(is_array, params.values()))
+    assert all(map(is_array, others.values()))
+    assert not any(map(is_array, jtu.tree_leaves(static)))
 
     # Gradients
     grads = api.grad(lambda params: loss(static(params, others)))(params)
@@ -170,9 +182,9 @@ def test_BatchNorm():
     static, params, others = model.partition(Parameter)
 
     assert all(key.endswith('.value') for key in params)
-    assert all(isinstance(leaf, Array) for leaf in params.values())
-    assert all(isinstance(leaf, Array) for leaf in others.values())
-    assert isinstance(static, Hashable)
+    assert all(map(is_array, params.values()))
+    assert all(map(is_array, others.values()))
+    assert not any(map(is_array, jtu.tree_leaves(static)))
 
     # Gradients
     def ell(params):
@@ -238,9 +250,9 @@ def test_share():
 
     assert not any(key.startswith('.l3') or key.startswith('.void') for key in params)
     assert all(key.endswith('.value') for key in params)
-    assert all(isinstance(leaf, Array) for leaf in params.values())
-    assert all(isinstance(leaf, Array) for leaf in others.values())
-    assert isinstance(static, Hashable)
+    assert all(map(is_array, params.values()))
+    assert all(map(is_array, others.values()))
+    assert not any(map(is_array, jtu.tree_leaves(static)))
 
     # Gradients
     grads = api.grad(lambda params: loss(static(params, others)))(params)

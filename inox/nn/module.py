@@ -61,18 +61,16 @@ import jax.numpy as jnp
 import jax.tree_util as jtu
 
 from jax import Array
-from typing import Any, Callable, Dict, Tuple, Union
+from typing import Any, Callable, Dict, NamedTuple, Tuple, Union
 
 # isort: split
 from ..tree_util import (
     Namespace,
     PyTreeDef,
-    Static,
+    is_array,
     tree_combine,
-    tree_mask,
     tree_partition,
     tree_repr,
-    tree_unmask,
 )
 
 
@@ -142,13 +140,15 @@ class Module(Namespace):
             >>> static, frozen, others = model.partition(filtr)
         """
 
-        tree = tree_mask(self)
-        treedef, *arrays = tree_partition(tree, *filters)
+        is_leaf = lambda x: jtu.all_leaves((x,))
+        is_static = lambda x: is_leaf(x) and not is_array(x)
 
-        return ModuleDef(treedef), *arrays
+        treedef, static, *arrays = tree_partition(self, is_static, *filters)
+
+        return ModuleDef(treedef, static), *arrays
 
 
-class ModuleDef(Static):
+class ModuleDef(NamedTuple):
     r"""Abstraction for the static definition of a module.
 
     See also:
@@ -156,10 +156,11 @@ class ModuleDef(Static):
 
     Arguments:
         treedef: A module tree definition.
+        leaves: The static (non-array) leaves of the module.
     """
 
-    def __init__(self, treedef: PyTreeDef):
-        self.value = treedef
+    treedef: PyTreeDef
+    leaves: Dict[str, Any]
 
     def __call__(self, *arrays: Dict[str, Array]) -> Module:
         r"""
@@ -170,14 +171,7 @@ class ModuleDef(Static):
             A new instance of the module.
         """
 
-        tree = tree_combine(self.treedef, *arrays)
-        tree = tree_unmask(tree)
-
-        return tree
-
-    @property
-    def treedef(self) -> PyTreeDef:
-        return self.value
+        return tree_combine(self.treedef, self.leaves, *arrays)
 
 
 class Parameter(Namespace):
@@ -245,7 +239,7 @@ class ComplexParameter(Parameter):
 
     @property
     def value(self) -> Array:
-        if self.real is None or self.imag is None:
-            return None
-        else:
+        try:
             return jax.lax.complex(self.real, self.imag)
+        except TypeError:
+            return None
