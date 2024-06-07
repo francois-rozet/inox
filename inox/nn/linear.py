@@ -15,7 +15,7 @@ from typing import Sequence, Tuple, Union
 
 # isort: local
 from .module import Module, Parameter
-from ..numpy import flatten, unflatten
+from ..numpy import vectorize
 from ..random import get_rng
 
 
@@ -160,11 +160,9 @@ class Conv(Module):
             total padding of the :math:`i`-th spatial axis.
         """
 
-        batch = x.shape[: -self.ndim]
-
-        x = flatten(x, 0, -self.ndim)
-        x = jax.lax.conv_general_dilated(
-            lhs=x,
+        x = jnp.expand_dims(x, axis=0)
+        x = vectorize(jax.lax.conv_general_dilated, ndims=self.ndim + 1)(
+            x,
             rhs=self.kernel(),
             dimension_numbers=self.dimensions,
             window_strides=self.stride,
@@ -172,7 +170,7 @@ class Conv(Module):
             padding=self.padding,
             feature_group_count=self.groups,
         )
-        x = unflatten(x, 0, batch)
+        x = jnp.squeeze(x, axis=0)
 
         if self.bias is None:
             return x
@@ -233,11 +231,9 @@ class ConvTransposed(Conv):
             total padding of the :math:`i`-th spatial axis.
         """
 
-        batch = x.shape[: -self.ndim]
-
-        x = flatten(x, 0, -self.ndim)
-        x = jax.lax.conv_general_dilated(
-            lhs=x,
+        x = jnp.expand_dims(x, axis=0)
+        x = vectorize(jax.lax.conv_general_dilated, ndims=self.ndim + 1)(
+            x,
             rhs=self.kernel(),
             dimension_numbers=self.dimensions,
             window_strides=[1] * (self.ndim - 1),
@@ -246,7 +242,7 @@ class ConvTransposed(Conv):
             rhs_dilation=self.dilation,
             feature_group_count=self.groups,
         )
-        x = unflatten(x, 0, batch)
+        x = jnp.squeeze(x, axis=0)
 
         if self.bias is None:
             return x

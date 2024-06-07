@@ -62,7 +62,7 @@ def vectorize(
     f: Callable,
     ndims: Union[int, Sequence[int]],
     exclude: Iterable[int] = (),
-):
+) -> Callable:
     r"""Vectorizes a function with broadcasting.
 
     :func:`vectorize` is similar to :func:`jax.numpy.vectorize` except that it takes the
@@ -82,9 +82,6 @@ def vectorize(
         >>> mvp(A, x)  # broadcasting matrix-vector product
     """
 
-    if isinstance(ndims, int):
-        ndims = [ndims]
-
     exclude = set(exclude)
 
     @wraps(f)
@@ -98,10 +95,14 @@ def vectorize(
 
             return f(*args, **kwargs)
 
-        assert len(args) <= len(ndims)
-        assert all(0 <= ndim <= arg.ndim for arg, ndim in zip(args, ndims))
+        if isinstance(ndims, int):
+            shapes = [arg.shape[: arg.ndim - ndims] for arg in args]
+        else:
+            assert len(args) == len(ndims)
+            assert all(0 <= ndim <= arg.ndim for arg, ndim in zip(args, ndims))
 
-        shapes = [arg.shape[: arg.ndim - ndim] for arg, ndim in zip(args, ndims)]
+            shapes = [arg.shape[: arg.ndim - ndim] for arg, ndim in zip(args, ndims)]
+
         broadcast = jnp.broadcast_shapes(*shapes)
         squeezed = []
 
