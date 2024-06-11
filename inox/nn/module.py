@@ -16,8 +16,8 @@ other modules. Parametric functions, such as neural networks, should subclass
         def __init__(self, in_features, out_features, key):
             keys = jax.random.split(key, 2)
 
-            self.weight = Parameter(jax.random.normal(keys[0], (in_features, out_features)))
-            self.bias = Parameter(jax.random.normal(keys[1], (out_features,)))
+            self.weight = nn.Parameter(jax.random.normal(keys[0], (in_features, out_features)))
+            self.bias = nn.Parameter(jax.random.normal(keys[1], (out_features,)))
 
         def __call__(self, x):
             return x @ self.weight() + self.bias()

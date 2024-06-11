@@ -7,9 +7,9 @@
 Inox
 ====
 
-Inox is a minimal `JAX <https://github.com/google/jax>`_ library for neural networks with an intuitive PyTorch-like syntax. As with `Equinox <https://github.com/patrick-kidger/equinox>`_, modules are represented as PyTrees, which enables complex architectures, easy manipulations, and functional transformations.
+Inox is a minimal `JAX <https://github.com/google/jax>`_ library for neural networks with an intuitive `PyTorch <https://github.com/pytorch/pytorch>`_-like syntax. As with `Equinox <https://github.com/patrick-kidger/equinox>`_, modules are represented as PyTrees, which enables complex architectures, easy manipulations, and functional transformations.
 
-Inox aims to be a leaner version of `Equinox <https://github.com/patrick-kidger/equinox>`_ by only retaining its core features: PyTrees and lifted transformations. In addition, Inox takes inspiration from other projects like `NNX <https://github.com/cgarciae/nnx>`_ and `Serket <https://github.com/ASEM000/serket>`_ to provide a versatile interface.
+Inox aims to be a leaner version of Equinox by only retaining its core features: PyTrees and lifted transformations. In addition, Inox takes inspiration from other projects like `NNX <https://github.com/cgarciae/nnx>`_ and `Serket <https://github.com/ASEM000/serket>`_ to provide a versatile interface. Despite the differences, Inox remains compatible with the Equinox ecosystem, and its components (e.g. modules, transformations, ...) are for the most part interchangeable with those of Equinox.
 
 Installation
 ------------
