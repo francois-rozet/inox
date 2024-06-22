@@ -146,9 +146,9 @@ class Reference(metaclass=PyTreeMeta):
         value: The value to reference.
 
     Example:
-        >>> weight = Reference('my-ref', Parameter(jax.random.ones((3, 5))))
+        >>> weight = Reference('my-ref', nn.Parameter(jax.numpy.ones((3, 5))))
         >>> weight  # repr preceded by an asterisk
-        *Parameter(float[3, 5])
+        *Parameter(float32[3, 5])
         >>> weight.shape
         (3, 5)
         >>> weight()

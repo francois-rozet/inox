@@ -40,6 +40,12 @@ We use [pytest](https://docs.pytest.org) to test our code base. If your contribu
 pytest tests
 ```
 
+Additionally, examples in the documentation are tested with
+
+```
+pytest inox --doctest-modules
+```
+
 When you submit a pull request, tests are automatically (upon approval) executed for several versions of Python and JAX.
 
 ### Code conventions

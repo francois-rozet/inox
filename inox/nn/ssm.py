@@ -88,9 +88,9 @@ class SISO(Module):
 class Eigenvalue(ComplexParameter):
     r"""Wrapper to indicate an optimizable eigenvalue array."""
 
-    def __init__(self, real: Array, imag: Array):
-        self.log_real = jnp.log(-real)
-        self.imag = imag
+    def __init__(self, value: Array):
+        self.log_real = jnp.log(-value.real)
+        self.imag = value.imag
 
     @property
     def real(self) -> Array:
@@ -113,7 +113,7 @@ class S4(SISO):
             :func:`inox.random.get_rng` is used instead.
 
     Example:
-        >>> ssm = S4(hid_features=64, key=key)
+        >>> ssm = S4(hid_features=64, key=jax.random.key(0))
         >>> u = jax.numpy.linspace(0.0, 1.0, 1024)
         >>> y = ssm(u)
     """

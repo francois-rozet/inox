@@ -37,7 +37,7 @@ class PRNG(Namespace):
                [1903583750,  988321301],
                [3226638877, 2833683589]], dtype=uint32)
         >>> rng.normal((5,))
-        Array([ 0.5694761 , -1.4582146 ,  0.2309113 , -0.03029377,  0.11095619], dtype=float32)
+        Array([ 0.5694761 , -1.4582146 ,  0.2309113 , -0.03029377,  0.11095619],      dtype=float32)
     """
 
     def __init__(self, seed: Union[int, Array], **kwargs):
@@ -95,8 +95,8 @@ def set_rng(rng: PRNG):
 
     Example:
         >>> with set_rng(PRNG(0)):
-        >>> ... a = get_rng().split()
-        >>> ... b = get_rng().normal((2, 3))
+        ...     a = get_rng().split()
+        ...     b = get_rng().normal((2, 3))
     """
 
     global INOX_RNG

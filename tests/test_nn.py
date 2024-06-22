@@ -176,7 +176,7 @@ def test_BatchNorm():
 
         return jnp.mean((z - y) ** 2), state
 
-    value, state = loss(model, state)
+    _, state = loss(model, state)
 
     # Partition
     static, params, others = model.partition(Parameter)

@@ -12,10 +12,11 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.10"
-      - uses: pre-commit/action@v3.0.1
+      - name: Run pre-commit hooks
+        uses: pre-commit/action@v3.0.1
         with:
           extra_args: --all-files --config pre-commit.yml
-  test:
+  pytest:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -29,9 +30,22 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip setuptools
           pip install pytest
           pip install jax[cpu]==${{ matrix.jax-version }}
           pip install .
-      - name: Test with pytest
+      - name: Run tests
         run: pytest tests
+  doctest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: |
+          pip install pytest
+          pip install jax[cpu]==0.4.28
+          pip install .
+      - name: Run doctests
+        run: pytest inox --doctest-modules

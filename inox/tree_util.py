@@ -154,10 +154,10 @@ class Static(metaclass=PyTreeMeta):
 
     def __init__(self, value: Hashable):
         if not isinstance(value, Hashable):
-            warn(f"considering a non-hashable object ('{type(value).__name__}') static could lead to frequent JIT recompilations.")  # fmt: off
+            warn(f"considering a non-hashable object ('{type(value).__name__}') static could lead to frequent JIT recompilations.", stacklevel=2)  # fmt: off
         elif callable(value):
             if '<lambda>' in value.__qualname__ or '<locals>' in value.__qualname__:
-                warn(f"considering a local function ('{value.__qualname__}') static could lead to frequent JIT recompilations.")  # fmt: off
+                warn(f"considering a local function ('{value.__qualname__}') static could lead to frequent JIT recompilations.", stacklevel=2)  # fmt: off
 
         self.value = value
 
@@ -310,7 +310,7 @@ def tree_partition(
         if prefix is None:
             i = len(filters)
         else:
-            for i, filtr in enumerate(prefix):
+            for i, filtr in enumerate(prefix):  # noqa: B007
                 if filtr(x):
                     break
             else:
@@ -409,14 +409,18 @@ def tree_repr(
         The representation string.
 
     Example:
-        >>> tree = [1, 'two', (True, False), list(range(5)), {'6': jnp.arange(7)}]
+        >>> tree = [1, 'two', (True, False), list(range(5)), {'6': jax.numpy.arange(7)}]
+        >>> tree.append(Namespace(eight=None))
         >>> print(tree_repr(tree))
         [
           1,
           'two',
           (True, False),
-          [0, 1, 2, 3, 4, 5],
-          {'6': int32[7]}
+          [0, 1, 2, 3, 4],
+          {'6': int32[7]},
+          Namespace(
+            eight = None
+          )
         ]
     """
 

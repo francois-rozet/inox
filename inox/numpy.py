@@ -78,8 +78,12 @@ def vectorize(
         The vectorized function.
 
     Example:
-        >>> mvp = vectorize(jax.numpy.dot, (2, 1))
-        >>> mvp(A, x)  # broadcasting matrix-vector product
+        >>> mvp = vectorize(jax.numpy.dot, (2, 1))  # broadcasting matrix-vector product
+        >>> A = jax.numpy.ones((5, 3))
+        >>> x = jax.random.normal(jax.random.key(0), (16, 3))
+        >>> y = mvp(A, x)
+        >>> y.shape
+        (16, 5)
     """
 
     exclude = set(exclude)

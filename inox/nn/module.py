@@ -96,7 +96,21 @@ class Module(Namespace):
             mode: Whether to turn training mode on or off.
 
         Example:
-            >>> model.train(False)  # turns off dropout
+            >>> model = Module(dropout=nn.TrainingDropout())
+            >>> model
+            Module(
+              dropout = TrainingDropout(
+                p = float32[]
+              )
+            )
+            >>> model.train(False)
+            >>> model
+            Module(
+              dropout = TrainingDropout(
+                p = float32[],
+                training = False
+              )
+            )
         """
 
         for leaf in jtu.tree_leaves(vars(self), is_module):
@@ -128,16 +142,45 @@ class Module(Namespace):
             The module static definition and array partitions.
 
         Examples:
+            >>> keys = jax.random.split(jax.random.key(0), 2)
+            >>> model = Module(layers=[
+            ...     nn.Linear(3, 64, key=keys[0]),
+            ...     nn.ReLU(),
+            ...     nn.TrainingDropout(),
+            ...     nn.Linear(64, 5, key=keys[1]),
+            ... ])
             >>> static, arrays = model.partition()
-            >>> clone = static(arrays)
+            >>> print(inox.tree_repr(arrays))
+            {
+              '.layers[0].bias.value': float32[64],
+              '.layers[0].weight.value': float32[3, 64],
+              '.layers[2].p': float32[],
+              '.layers[3].bias.value': float32[5],
+              '.layers[3].weight.value': float32[64, 5]
+            }
 
             >>> static, params, others = model.partition(nn.Parameter)
-            >>> params, opt_state = optimizer.update(grads, opt_state, params)
-            >>> model = static(params, others)
+            >>> print(inox.tree_repr(params))
+            {
+              '.layers[0].bias.value': float32[64],
+              '.layers[0].weight.value': float32[3, 64],
+              '.layers[3].bias.value': float32[5],
+              '.layers[3].weight.value': float32[64, 5]
+            }
+            >>> print(inox.tree_repr(others))
+            {'.layers[2].p': float32[]}
 
-            >>> model.path[2].layer.frozen = True
-            >>> filtr = lambda x: getattr(x, 'frozen', False)
-            >>> static, frozen, others = model.partition(filtr)
+            >>> grads = jax.tree_util.tree_map(jax.numpy.ones_like, params)
+            >>> params = jax.tree_util.tree_map(lambda x, y: x + 0.01 * y, params, grads)
+            >>> model = static(params, others)  # updated copy
+
+            >>> model.layers[3].frozen = True
+            >>> filtr = lambda x: hasattr(x, 'frozen')
+            >>> static, frozen, params, others = model.partition(filtr, nn.Parameter)
+            >>> print(inox.tree_repr(frozen))
+            {'.layers[3].bias.value': float32[5], '.layers[3].weight.value': float32[64, 5]}
+            >>> print(inox.tree_repr(params))
+            {'.layers[0].bias.value': float32[64], '.layers[0].weight.value': float32[3, 64]}
         """
 
         is_leaf = lambda x: jtu.all_leaves((x,))
@@ -186,6 +229,7 @@ class Parameter(Namespace):
     Example:
         >>> weight = Parameter(jax.numpy.ones((3, 5))); weight
         Parameter(float32[3, 5])
+        >>> x = jax.random.normal(jax.random.key(0), (16, 3))
         >>> y = x @ weight()
     """
 
@@ -225,6 +269,7 @@ class ComplexParameter(Parameter):
         >>> value = jax.numpy.ones((3, 5)) + 1j * jax.numpy.zeros((3, 5))
         >>> weight = ComplexParameter(value); weight
         ComplexParameter(complex64[3, 5])
+        >>> x = jax.random.normal(jax.random.key(0), (16, 3))
         >>> y = x @ weight()
     """
 
