@@ -21,17 +21,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.9", "3.11"]
-        jax-version: ["0.4.14", "0.4.28"]
+        python: ["3.9", "3.11"]
+        numpy: ["1.26"]
+        jax: ["0.4.14", "0.4.28"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: ${{ matrix.python }}
       - name: Install dependencies
         run: |
           pip install pytest
-          pip install jax[cpu]==${{ matrix.jax-version }}
+          pip install numpy==${{ matrix.numpy }}
+          pip install jax[cpu]==${{ matrix.jax }}
           pip install .
       - name: Run tests
         run: pytest tests
