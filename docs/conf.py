@@ -4,6 +4,7 @@ import glob
 import importlib
 import inox
 import inspect
+import pathlib
 import re
 import subprocess
 
@@ -15,6 +16,7 @@ version = inox.__version__
 copyright = '2023, François Rozet'
 repository = 'https://github.com/francois-rozet/inox'
 commit = subprocess.check_output(['git', 'rev-parse', 'HEAD'], text=True).strip()
+root = subprocess.check_output(['git', 'rev-parse', '--show-toplevel'], text=True).strip()
 
 ## Extensions
 
@@ -57,12 +59,12 @@ def linkcode_resolve(domain: str, info: dict) -> str:
     for name in fullname.split('.'):
         objct = getattr(objct, name)
 
-    if hasattr(objct, '__wrapped__'):
+    while hasattr(objct, '__wrapped__'):
         objct = objct.__wrapped__
 
     try:
         file = inspect.getsourcefile(objct)
-        file = file[file.rindex(package) :]
+        file = pathlib.Path(file).relative_to(root)
 
         lines, start = inspect.getsourcelines(objct)
         end = start + len(lines) - 1
