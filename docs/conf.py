@@ -116,6 +116,7 @@ html_theme_options = {
     },
     'dark_logo': 'logo_dark.svg',
     'sidebar_hide_name': True,
+    'top_of_page_buttons': ['view'],
 }
 html_title = f'{project} {version}'
 pygments_style = 'sphinx'
