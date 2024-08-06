@@ -17,7 +17,7 @@ def test_Module():
     module = Module(
         a=0.0,
         b=Parameter(jnp.ones(1)),
-        c=[jnp.arange(2), 'three'],
+        c=[jnp.arange(2), "three"],
         d=False,
         e=Module(f=np.zeros(5), g=range(6)),
         h=ComplexParameter(7.0 + 8.0j),
@@ -42,7 +42,7 @@ def test_Module():
     ## filters (type)
     static, params, others = module.partition(Parameter)
 
-    assert all(key.endswith(('.value', '.real', '.imag')) for key in params)
+    assert all(key.endswith((".value", ".real", ".imag")) for key in params)
     assert all(map(is_array, params.values()))
     assert all(map(is_array, others.values()))
     assert not any(map(is_array, jtu.tree_leaves(static)))
@@ -53,15 +53,15 @@ def test_Module():
         static(params)
 
     with pytest.raises(KeyError):
-        static(params, others, {'none': None})
+        static(params, others, {"none": None})
 
     ## filters (callable)
     module.e.frozen = True
 
-    static, frozen, others = module.partition(lambda x: getattr(x, 'frozen', False))
+    static, frozen, others = module.partition(lambda x: getattr(x, "frozen", False))
 
-    assert all('.e' in key for key in frozen)
-    assert all('.e' not in key for key in others)
+    assert all(".e" in key for key in frozen)
+    assert all(".e" not in key for key in others)
     assert all(map(is_array, frozen.values()))
     assert all(map(is_array, others.values()))
     assert not any(map(is_array, jtu.tree_leaves(static)))
@@ -74,7 +74,7 @@ def test_Module():
     assert repr(module)
 
 
-@pytest.mark.parametrize('norm', ['layer', 'group'])
+@pytest.mark.parametrize("norm", ["layer", "group"])
 def test_MLP(norm: str):
     key = jax.random.key(0)
     x = jax.random.normal(key, (1024, 3))
@@ -87,7 +87,7 @@ def test_MLP(norm: str):
             self.l1 = Linear(3, 64, key=keys[0])
             self.l2 = Linear(64, 1, key=keys[1])
             self.relu = ReLU()
-            self.norm = LayerNorm() if norm == 'group' else GroupNorm(4)
+            self.norm = LayerNorm() if norm == "group" else GroupNorm(4)
 
         def __call__(self, x):
             return self.l2(self.norm(self.relu(self.l1(x))))
@@ -115,7 +115,7 @@ def test_MLP(norm: str):
     # Partition
     static, params, others = model.partition(Parameter)
 
-    assert all(key.endswith('.value') for key in params)
+    assert all(key.endswith(".value") for key in params)
     assert all(map(is_array, params.values()))
     assert all(map(is_array, others.values()))
     assert not any(map(is_array, jtu.tree_leaves(static)))
@@ -181,7 +181,7 @@ def test_BatchNorm():
     # Partition
     static, params, others = model.partition(Parameter)
 
-    assert all(key.endswith('.value') for key in params)
+    assert all(key.endswith(".value") for key in params)
     assert all(map(is_array, params.values()))
     assert all(map(is_array, others.values()))
     assert not any(map(is_array, jtu.tree_leaves(static)))
@@ -211,10 +211,10 @@ def test_share():
             self.l4 = Linear(in_features=64, out_features=1, key=keys[2])
             self.relu = ReLU()
 
-            self.l2 = Reference('l2', self.l2)
+            self.l2 = Reference("l2", self.l2)
             self.l2.cycle = self.l2
             self.l3 = self.l2
-            self.l4.weight = Reference('l4.weight', self.l4.weight)
+            self.l4.weight = Reference("l4.weight", self.l4.weight)
             self.void = self.l4.weight
 
         def __call__(self, x):
@@ -248,8 +248,8 @@ def test_share():
     # Partition
     static, params, others = model.partition(Parameter)
 
-    assert not any(key.startswith('.l3') or key.startswith('.void') for key in params)
-    assert all(key.endswith('.value') for key in params)
+    assert not any(key.startswith(".l3") or key.startswith(".void") for key in params)
+    assert all(key.endswith(".value") for key in params)
     assert all(map(is_array, params.values()))
     assert all(map(is_array, others.values()))
     assert not any(map(is_array, jtu.tree_leaves(static)))

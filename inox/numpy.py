@@ -1,9 +1,9 @@
 r"""Extended NumPy interface"""
 
 __all__ = [
-    'flatten',
-    'unflatten',
-    'vectorize',
+    "flatten",
+    "unflatten",
+    "vectorize",
 ]
 
 import jax

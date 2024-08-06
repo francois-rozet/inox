@@ -1,8 +1,8 @@
 r"""Dropout layers"""
 
 __all__ = [
-    'Dropout',
-    'TrainingDropout',
+    "Dropout",
+    "TrainingDropout",
 ]
 
 import jax

@@ -23,10 +23,10 @@ def tree_eq(x, y):
 
 
 def test_Namespace():
-    x = Namespace(a=1, b='2')
+    x = Namespace(a=1, b="2")
 
     assert x.a == 1
-    assert x.b == '2'
+    assert x.b == "2"
 
     # Add
     x.c = True
@@ -41,7 +41,7 @@ def test_Namespace():
     # Delete
     del x.b
 
-    assert not hasattr(x, 'b')
+    assert not hasattr(x, "b")
 
     # Flatten
     leaves, treedef = jtu.tree_flatten(x)
@@ -62,12 +62,12 @@ def test_Namespace():
     assert repr(x)
 
 
-@pytest.mark.parametrize('nested', [False, True])
+@pytest.mark.parametrize("nested", [False, True])
 def test_Static(nested: bool):
     if nested:
-        x = Static(Static('hashable'))
+        x = Static(Static("hashable"))
     else:
-        x = Static('hashable')
+        x = Static("hashable")
 
     # Flatten
     leaves, treedef = jtu.tree_flatten(x)
@@ -94,7 +94,7 @@ def test_tree_mask():
         a=jnp.ones(1),
         b=2,
         c=[jnp.arange(3), False],
-        d=Namespace(e='five', f=jnp.eye(6)),
+        d=Namespace(e="five", f=jnp.eye(6)),
     )
 
     # tree_mask
@@ -121,7 +121,7 @@ def test_tree_partition():
         a=jnp.ones(1),
         b=2,
         c=[jnp.arange(3), False],
-        d=Namespace(e='five', f=jnp.eye(6)),
+        d=Namespace(e="five", f=jnp.eye(6)),
     )
 
     # tree_partition
@@ -149,4 +149,4 @@ def test_tree_partition():
         tree_combine(treedef_a, {})
 
     with pytest.raises(KeyError):
-        tree_combine(treedef_a, leaves, {'none': None})
+        tree_combine(treedef_a, leaves, {"none": None})

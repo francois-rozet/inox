@@ -9,7 +9,7 @@ from inox.random import *
 from typing import *
 
 
-@pytest.mark.parametrize('seed', [0, jax.random.key(0)])
+@pytest.mark.parametrize("seed", [0, jax.random.key(0)])
 def test_PRNG(seed):
     rng = PRNG(seed)
     shape = rng.state.shape

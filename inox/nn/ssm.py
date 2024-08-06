@@ -1,8 +1,8 @@
 r"""State space model (SSM) layers"""
 
 __all__ = [
-    'SISO',
-    'S4',
+    "SISO",
+    "S4",
 ]
 
 import jax

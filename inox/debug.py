@@ -1,7 +1,7 @@
 r"""Extended utilities for debugging"""
 
 __all__ = [
-    'same_trace',
+    "same_trace",
 ]
 
 
@@ -28,10 +28,10 @@ def same_trace(x: Array, y: Array, ignore_primal: bool = False) -> bool:
     """
 
     if ignore_primal:
-        while hasattr(x, 'primal'):
+        while hasattr(x, "primal"):
             x = x.primal
 
-        while hasattr(y, 'primal'):
+        while hasattr(y, "primal"):
             y = y.primal
 
     if isinstance(x, Tracer) and isinstance(y, Tracer):

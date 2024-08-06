@@ -6,9 +6,9 @@ References:
 """
 
 __all__ = [
-    'Rearrange',
-    'Reduce',
-    'Repeat',
+    "Rearrange",
+    "Reduce",
+    "Repeat",
 ]
 
 import einops
@@ -50,7 +50,7 @@ class Reduce(Module):
         lengths: The lengths of the axes.
     """
 
-    def __init__(self, pattern: str, reduction: str = 'sum', **lengths: int):
+    def __init__(self, pattern: str, reduction: str = "sum", **lengths: int):
         self.pattern = pattern
         self.reduction = reduction
         self.lengths = lengths

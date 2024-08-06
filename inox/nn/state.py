@@ -67,10 +67,10 @@ module's execution.
 """
 
 __all__ = [
-    'StateEntry',
-    'StateKey',
-    'update_state',
-    'export_state',
+    "StateEntry",
+    "StateKey",
+    "update_state",
+    "export_state",
 ]
 
 import jax.tree_util as jtu
@@ -108,7 +108,7 @@ class StateKey(NamedTuple):
         return self.tree_repr()
 
     def tree_repr(self, **kwargs) -> str:
-        return f'{self.__class__.__name__}({repr(self.key)})'
+        return f"{self.__class__.__name__}({repr(self.key)})"
 
 
 def update_state(state: Dict, mutation: Dict) -> Dict:

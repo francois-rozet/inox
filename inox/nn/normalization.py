@@ -1,9 +1,9 @@
 r"""Normalization layers"""
 
 __all__ = [
-    'BatchNorm',
-    'LayerNorm',
-    'GroupNorm',
+    "BatchNorm",
+    "LayerNorm",
+    "GroupNorm",
 ]
 
 import jax
@@ -169,8 +169,8 @@ class GroupNorm(LayerNorm):
             The output tensor :math:`y`, with shape :math:`(*, C)`.
         """
 
-        x = rearrange(x, '... (G D) -> ... G D', G=self.groups)
+        x = rearrange(x, "... (G D) -> ... G D", G=self.groups)
         x = super().__call__(x)
-        x = rearrange(x, '... G D -> ... (G D)')
+        x = rearrange(x, "... G D -> ... (G D)")
 
         return x

@@ -1,10 +1,10 @@
 r"""Recurrent layers"""
 
 __all__ = [
-    'Cell',
-    'Recurrent',
-    'GRUCell',
-    'LSTMCell',
+    "Cell",
+    "Recurrent",
+    "GRUCell",
+    "LSTMCell",
 ]
 
 import jax

@@ -53,8 +53,8 @@ with :class:`Reference`.
 """
 
 __all__ = [
-    'Scope',
-    'Reference',
+    "Scope",
+    "Reference",
 ]
 
 import jax.tree_util as jtu
@@ -127,7 +127,7 @@ class Scope(Module):
         return super().tree_unflatten(names, unprune(values))
 
     def tree_repr(self, **kwargs) -> str:
-        kwargs['references'] = set()
+        kwargs["references"] = set()
         return super().tree_repr(**kwargs)
 
 
@@ -167,7 +167,7 @@ class Reference(metaclass=PyTreeMeta):
         return self.value(*args, **kwargs)
 
     def __delattr__(self, name: str):
-        if name in ('tag', 'value'):
+        if name in ("tag", "value"):
             object.__delattr__(self, name)
         else:
             delattr(self.value, name)
@@ -182,7 +182,7 @@ class Reference(metaclass=PyTreeMeta):
         return self.value[key]
 
     def __setattr__(self, name: str, value: Any):
-        if name in ('tag', 'value'):
+        if name in ("tag", "value"):
             object.__setattr__(self, name, value)
         else:
             setattr(self.value, name, value)
@@ -194,19 +194,19 @@ class Reference(metaclass=PyTreeMeta):
         return self.tree_repr()
 
     def tree_repr(self, **kwargs) -> str:
-        references = kwargs.setdefault('references', set())
+        references = kwargs.setdefault("references", set())
 
         if self.tag in references:
-            return f'@{self.tag}'
+            return f"@{self.tag}"
         else:
             references.add(self.tag)
-            return f'*{tree_repr(self.value, **kwargs)}'
+            return f"*{tree_repr(self.value, **kwargs)}"
 
     def tree_flatten(self):
         return [self.value], self.tag
 
     def tree_flatten_with_keys(self):
-        return [(jtu.GetAttrKey('value'), self.value)], self.tag
+        return [(jtu.GetAttrKey("value"), self.value)], self.tag
 
     @classmethod
     def tree_unflatten(cls, tag, children):

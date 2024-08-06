@@ -6,16 +6,16 @@ JAX transformations for which all non-array leaves (:py:`float`, :py:`str`, func
 """
 
 __all__ = [
-    'automask',
-    'jit',
-    'grad',
-    'value_and_grad',
-    'jacfwd',
-    'jacrev',
-    'hessian',
-    'checkpoint',
-    'vmap',
-    'pmap',
+    "automask",
+    "jit",
+    "grad",
+    "value_and_grad",
+    "jacfwd",
+    "jacrev",
+    "hessian",
+    "checkpoint",
+    "vmap",
+    "pmap",
 ]
 
 import jax
@@ -30,10 +30,10 @@ from .tree_util import tree_mask, tree_unmask
 
 @cache
 def inner(fun: Callable):
-    if fun is getattr(fun, '__inner__', None):
+    if fun is getattr(fun, "__inner__", None):
         return fun
 
-    if fun is getattr(fun, '__outer__', None):
+    if fun is getattr(fun, "__outer__", None):
         return fun.__wrapped__
 
     @wraps(fun)
@@ -47,10 +47,10 @@ def inner(fun: Callable):
 
 
 def outer(fun: Callable):
-    if fun is getattr(fun, '__inner__', None):
+    if fun is getattr(fun, "__inner__", None):
         return fun.__wrapped__
 
-    if fun is getattr(fun, '__outer__', None):
+    if fun is getattr(fun, "__outer__", None):
         return fun
 
     @wraps(fun)

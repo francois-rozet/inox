@@ -1,7 +1,7 @@
 r"""Interpolation layers"""
 
 __all__ = [
-    'Resample',
+    "Resample",
 ]
 
 import jax

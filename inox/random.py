@@ -1,9 +1,9 @@
 r"""Extended utilities for random number generation"""
 
 __all__ = [
-    'PRNG',
-    'set_rng',
-    'get_rng',
+    "PRNG",
+    "set_rng",
+    "get_rng",
 ]
 
 import jax

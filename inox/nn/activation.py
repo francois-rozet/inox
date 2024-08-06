@@ -1,19 +1,19 @@
 r"""Activation functions"""
 
 __all__ = [
-    'Identity',
-    'Tanh',
-    'Sigmoid',
-    'SiLU',
-    'Softplus',
-    'Softmax',
-    'ReLU',
-    'LeakyReLU',
-    'ELU',
-    'CELU',
-    'GELU',
-    'SELU',
-    'SiLU',
+    "Identity",
+    "Tanh",
+    "Sigmoid",
+    "SiLU",
+    "Softplus",
+    "Softmax",
+    "ReLU",
+    "LeakyReLU",
+    "ELU",
+    "CELU",
+    "GELU",
+    "SELU",
+    "SiLU",
 ]
 
 import jax
@@ -89,7 +89,7 @@ class Softmax(Activation):
         return jax.nn.softmax(x, axis=self.axis)
 
     def tree_repr(self, **kwargs) -> str:
-        return f'{self.__class__.__name__}(axis={self.axis})'
+        return f"{self.__class__.__name__}(axis={self.axis})"
 
 
 class ReLU(Activation):
@@ -121,7 +121,7 @@ class LeakyReLU(Activation):
         return jax.nn.leaky_relu(x, self.alpha)
 
     def tree_repr(self, **kwargs) -> str:
-        return f'{self.__class__.__name__}(alpha={self.alpha})'
+        return f"{self.__class__.__name__}(alpha={self.alpha})"
 
 
 class ELU(Activation):
@@ -147,7 +147,7 @@ class ELU(Activation):
         return jax.nn.elu(x)
 
     def tree_repr(self, **kwargs) -> str:
-        return f'{self.__class__.__name__}(alpha={self.alpha})'
+        return f"{self.__class__.__name__}(alpha={self.alpha})"
 
 
 class CELU(ELU):
@@ -193,7 +193,7 @@ class GELU(Activation):
         return jax.nn.gelu(x, self.approximate)
 
     def tree_repr(self, **kwargs) -> str:
-        return f'{self.__class__.__name__}(approximate={self.approximate})'
+        return f"{self.__class__.__name__}(approximate={self.approximate})"
 
 
 class SELU(Activation):

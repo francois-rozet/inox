@@ -1,14 +1,14 @@
 r"""Extended utilities for tree-like data structures"""
 
 __all__ = [
-    'Namespace',
-    'Partial',
-    'Static',
-    'tree_mask',
-    'tree_unmask',
-    'tree_partition',
-    'tree_combine',
-    'tree_repr',
+    "Namespace",
+    "Partial",
+    "Static",
+    "tree_mask",
+    "tree_unmask",
+    "tree_partition",
+    "tree_combine",
+    "tree_repr",
 ]
 
 import dataclasses
@@ -20,8 +20,8 @@ from textwrap import indent
 from typing import Any, Callable, Dict, Hashable, Tuple, TypeVar, Union
 from warnings import warn
 
-PyTree = TypeVar('PyTree', bound=Any)
-PyTreeDef = TypeVar('PyTreeDef')
+PyTree = TypeVar("PyTree", bound=Any)
+PyTreeDef = TypeVar("PyTreeDef")
 
 
 def is_array(x: Any) -> bool:
@@ -34,7 +34,7 @@ class PyTreeMeta(type):
     def __new__(cls, *args, **kwargs) -> type:
         cls = super().__new__(cls, *args, **kwargs)
 
-        if hasattr(cls, 'tree_flatten_with_keys'):
+        if hasattr(cls, "tree_flatten_with_keys"):
             jtu.register_pytree_with_keys_class(cls)
         else:
             jtu.register_pytree_node_class(cls)
@@ -71,20 +71,20 @@ class Namespace(metaclass=PyTreeMeta):
         return tree_repr(self)
 
     def tree_repr(self, **kwargs) -> str:
-        private = kwargs.get('private', False)
+        private = kwargs.get("private", False)
 
         lines = (
-            f'{name} = {tree_repr(getattr(self, name), **kwargs)}'
+            f"{name} = {tree_repr(getattr(self, name), **kwargs)}"
             for name in sorted(self.__dict__.keys())
-            if not name.startswith('_') or private
+            if not name.startswith("_") or private
         )
 
-        lines = ',\n'.join(lines)
+        lines = ",\n".join(lines)
 
         if lines:
-            lines = '\n' + indent(lines, '  ') + '\n'
+            lines = "\n" + indent(lines, "  ") + "\n"
 
-        return f'{self.__class__.__name__}({lines})'
+        return f"{self.__class__.__name__}({lines})"
 
     def tree_flatten(self):
         if self.__dict__:
@@ -156,7 +156,7 @@ class Static(metaclass=PyTreeMeta):
         if not isinstance(value, Hashable):
             warn(f"considering a non-hashable object ('{type(value).__name__}') static could lead to frequent JIT recompilations.", stacklevel=2)  # fmt: off
         elif callable(value):
-            if '<lambda>' in value.__qualname__ or '<locals>' in value.__qualname__:
+            if "<lambda>" in value.__qualname__ or "<locals>" in value.__qualname__:
                 warn(f"considering a local function ('{value.__qualname__}') static could lead to frequent JIT recompilations.", stacklevel=2)  # fmt: off
 
         self.value = value
@@ -171,7 +171,7 @@ class Static(metaclass=PyTreeMeta):
         return self.tree_repr()
 
     def tree_repr(self, **kwargs) -> str:
-        return f'{self.__class__.__name__}({tree_repr(self.value, **kwargs)})'
+        return f"{self.__class__.__name__}({tree_repr(self.value, **kwargs)})"
 
     def tree_flatten(self):
         return (), self.value
@@ -379,12 +379,12 @@ def tree_combine(
     tree = jtu.tree_map_with_path(f, tree)
 
     if missing:
-        keys = ', '.join(f'"{key}"' for key in missing)
+        keys = ", ".join(f'"{key}"' for key in missing)
 
         raise KeyError(f"Missing key(s) in leaves: {keys}.")
 
     if leaves:
-        keys = ', '.join(f'"{key}"' for key in leaves)
+        keys = ", ".join(f'"{key}"' for key in leaves)
 
         raise KeyError(f"Unexpected key(s) in leaves: {keys}.")
 
@@ -429,43 +429,43 @@ def tree_repr(
         typeonly=typeonly,
     )
 
-    if hasattr(tree, 'tree_repr'):
+    if hasattr(tree, "tree_repr"):
         return tree.tree_repr(**kwargs)
     elif dataclasses._is_dataclass_instance(tree):
-        bra, ket = f'{type(tree).__name__}(', ')'
+        bra, ket = f"{type(tree).__name__}(", ")"
         lines = [
-            f'{field.name}={tree_repr(getattr(tree, field.name), **kwargs)}'
+            f"{field.name}={tree_repr(getattr(tree, field.name), **kwargs)}"
             for field in dataclasses.fields(tree)
             if field.repr
         ]
     elif isinstance(tree, tuple):
-        if hasattr(tree, '_fields'):
-            bra, ket = f'{type(tree).__name__}(', ')'
+        if hasattr(tree, "_fields"):
+            bra, ket = f"{type(tree).__name__}(", ")"
             lines = [
-                f'{field}={tree_repr(value, **kwargs)}' for field, value in tree._asdict().items()
+                f"{field}={tree_repr(value, **kwargs)}" for field, value in tree._asdict().items()
             ]
         else:
-            bra, ket = '(', ')'
+            bra, ket = "(", ")"
             lines = [tree_repr(x, **kwargs) for x in tree]
     elif isinstance(tree, list):
-        bra, ket = '[', ']'
+        bra, ket = "[", "]"
         lines = [tree_repr(x, **kwargs) for x in tree]
     elif isinstance(tree, dict):
-        bra, ket = '{', '}'
-        lines = [f'{repr(key)}: {tree_repr(value, **kwargs)}' for key, value in tree.items()]
+        bra, ket = "{", "}"
+        lines = [f"{repr(key)}: {tree_repr(value, **kwargs)}" for key, value in tree.items()]
     elif is_array(tree) and typeonly:
-        return f'{tree.dtype}{list(tree.shape)}'
+        return f"{tree.dtype}{list(tree.shape)}"
     else:
-        return repr(tree).strip(' \n')
+        return repr(tree).strip(" \n")
 
-    if any('\n' in line for line in lines):
-        lines = ',\n'.join(lines)
+    if any("\n" in line for line in lines):
+        lines = ",\n".join(lines)
     elif sum(len(line) + 2 for line in lines) > linewidth:
-        lines = ',\n'.join(lines)
+        lines = ",\n".join(lines)
     else:
-        lines = ', '.join(lines)
+        lines = ", ".join(lines)
 
-    if '\n' in lines:
-        lines = '\n' + indent(lines, '  ') + '\n'
+    if "\n" in lines:
+        lines = "\n" + indent(lines, "  ") + "\n"
 
-    return f'{bra}{lines}{ket}'
+    return f"{bra}{lines}{ket}"

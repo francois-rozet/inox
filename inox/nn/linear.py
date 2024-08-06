@@ -1,9 +1,9 @@
 r"""Linear layers"""
 
 __all__ = [
-    'Linear',
-    'Conv',
-    'ConvTransposed',
+    "Linear",
+    "Conv",
+    "ConvTransposed",
 ]
 
 import jax

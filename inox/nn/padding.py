@@ -1,7 +1,7 @@
 r"""Padding layers"""
 
 __all__ = [
-    'Pad',
+    "Pad",
 ]
 
 import jax.numpy as jnp
@@ -28,7 +28,7 @@ class Pad(Module):
     def __init__(
         self,
         padding: Sequence[Tuple[int, int]],
-        mode: str = 'constant',
+        mode: str = "constant",
         value: Union[float, Array] = 0.0,
     ):
         self.padding = padding

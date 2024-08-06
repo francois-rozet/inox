@@ -1,8 +1,8 @@
 r"""Pooling layers"""
 
 __all__ = [
-    'AvgPool',
-    'MaxPool',
+    "AvgPool",
+    "MaxPool",
 ]
 
 import jax

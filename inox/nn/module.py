@@ -50,10 +50,10 @@ other modules. Parametric functions, such as neural networks, should subclass
 from __future__ import annotations
 
 __all__ = [
-    'Module',
-    'ModuleDef',
-    'Parameter',
-    'ComplexParameter',
+    "Module",
+    "ModuleDef",
+    "Parameter",
+    "ComplexParameter",
 ]
 
 import jax
@@ -117,7 +117,7 @@ class Module(Namespace):
             if is_module(leaf):
                 leaf.train(mode)
 
-        if hasattr(self, 'training'):
+        if hasattr(self, "training"):
             self.training = mode
 
     def partition(
@@ -253,7 +253,7 @@ class Parameter(Namespace):
         return self.tree_repr()
 
     def tree_repr(self, **kwargs) -> str:
-        return f'{self.__class__.__name__}({tree_repr(self.value, **kwargs)})'
+        return f"{self.__class__.__name__}({tree_repr(self.value, **kwargs)})"
 
 
 class ComplexParameter(Parameter):

@@ -1,7 +1,7 @@
 r"""Attention layers"""
 
 __all__ = [
-    'MultiheadAttention',
+    "MultiheadAttention",
 ]
 
 import jax
@@ -40,7 +40,7 @@ def attention(
 
     C = q.shape[-1]
 
-    weight = jnp.einsum('...ik,...jk->...ij', q, k)
+    weight = jnp.einsum("...ik,...jk->...ij", q, k)
     weight = weight / math.sqrt(C)
 
     if mask is not None:
@@ -48,7 +48,7 @@ def attention(
 
     attn = jax.nn.softmax(weight, axis=-1)
 
-    return jnp.einsum('...ij,...jk->...ik', attn, v)
+    return jnp.einsum("...ij,...jk->...ik", attn, v)
 
 
 class MultiheadAttention(Module):
@@ -152,7 +152,7 @@ class MultiheadAttention(Module):
         k = self.lin_k(xk)
         v = self.lin_v(xv)
 
-        q, k, v = [rearrange(x, '... L (N H) -> ... N L H', N=self.heads) for x in (q, k, v)]
+        q, k, v = [rearrange(x, "... L (N H) -> ... N L H", N=self.heads) for x in (q, k, v)]
 
         # Mask
         if self.causal:
@@ -177,7 +177,7 @@ class MultiheadAttention(Module):
 
         # Attention
         y = attention(q, k, v, mask)
-        y = rearrange(y, '... N L H -> ... L (N H)')
+        y = rearrange(y, "... N L H -> ... L (N H)")
         y = self.lin_y(y)
 
         return y
