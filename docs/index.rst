@@ -78,10 +78,31 @@ However, if a tree contains strings or boolean flags, it becomes incompatible wi
 
     @inox.jit
     def loss_fn(model, x, y):
-        pred = inox.vmap(model)(x)
+        pred = jax.vmap(model)(x)
         return jax.numpy.mean((y - pred) ** 2)
 
     grads = inox.grad(loss_fn)(model, X, Y)
+
+Inox also provides a partition mechanism to split the static definition of a module (structure, strings, flags, ...) from its dynamic content (parameters, indices, statistics, ...), which is convenient for updating parameters.
+
+.. code-block:: python
+
+    model.mask = jax.numpy.array([1, 0, 1])  # not a parameter
+
+    static, params, others = model.partition(nn.Parameter)
+
+    @jax.jit
+    def loss_fn(params, others, x, y):
+        model = static(arrays, others)
+        pred = jax.vmap(model)(x)
+        return jax.numpy.mean((y - pred) ** 2)
+
+    grads = jax.grad(loss_fn)(params, others, X, Y)
+    params = jax.tree_util.tree_map(lambda p, g: p - 0.01 * g, params, grads)
+
+    model = static(params, others)
+
+For more information, check out the :doc:`tutorials <../tutorials>` or the :doc:`API <../api>`.
 
 .. toctree::
     :caption: inox
