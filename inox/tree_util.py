@@ -261,10 +261,11 @@ def tree_partition(
 ) -> Tuple[PyTreeDef, Dict[str, Any]]:
     r"""Flattens a tree and partitions the leaves.
 
-    The leaves are partitioned into a set of path-leaf mappings. Each mapping contains
-    the leaves of the subset of nodes satisfying the corresponding filtering constraint.
-    If a leaf satisfies several constraints, the first one is selected. The last mapping
-    is dedicated to leaves that do not satisfy any constraint.
+    The leaves are partitioned into a set of path-leaf mappings. The mapping in which a
+    leaf is contained is chosen according to its oldest (closest to the root) ancestor
+    that satisfies a constraint. If a node satisfies several constraints, the first one
+    is selected. The last mapping is dedicated to leaves that do not satisfy any
+    constraint.
 
     See also:
         :func:`tree_combine`
@@ -302,34 +303,24 @@ def tree_partition(
     filters = list(map(factory, filters))
 
     if is_leaf is None:
-        is_node = lambda x, prefix: any(filtr(x) for filtr in prefix)
+        is_node = lambda x: any(filtr(x) for filtr in filters)
     else:
-        is_node = lambda x, prefix: any(filtr(x) for filtr in prefix) or is_leaf(x)
+        is_node = lambda x: any(filtr(x) for filtr in filters) or is_leaf(x)
 
-    def color(x, prefix=None):
-        if prefix is None:
-            i = len(filters)
+    def f(node_path, node):
+        for i, filtr in enumerate(filters):  # noqa: B007
+            if filtr(node):
+                break
         else:
-            for i, filtr in enumerate(prefix):  # noqa: B007
-                if filtr(x):
-                    break
-            else:
-                return len(prefix)
+            i = len(filters)
 
-        prefix = filters[:i]
+        def g(leaf_path, leaf):
+            key = jtu.keystr(node_path + leaf_path)
+            leaves[i][key] = leaf
 
-        return jtu.tree_map(
-            f=lambda x: color(x, prefix),
-            tree=x,
-            is_leaf=lambda x: is_node(x, prefix),
-        )
+        jtu.tree_map_with_path(f=g, tree=node, is_leaf=is_leaf)
 
-    labels = color(tree)
-
-    def f(path, leaf, label):
-        leaves[label][jtu.keystr(path)] = leaf
-
-    jtu.tree_map_with_path(f, tree, labels, is_leaf=is_leaf)
+    jtu.tree_map_with_path(f=f, tree=tree, is_leaf=is_node)
 
     return treedef, *leaves
 

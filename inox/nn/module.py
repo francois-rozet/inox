@@ -126,13 +126,14 @@ class Module(Namespace):
     ) -> Tuple[ModuleDef, Dict[str, Array]]:
         r"""Splits the static definition of the module from its arrays.
 
-        The arrays are partitioned into a set of path-array mappings. Each mapping
-        contains the arrays of the subset of nodes satisfying the corresponding
-        filtering constraint. The last mapping is dedicated to arrays that do not
-        satisfy any constraint.
+        The arrays are partitioned into a set of path-array mappings. The mapping in
+        which an array is contained is chosen according to its oldest (closest to the
+        root) ancestor that satisfies a constraint. If a node satisfies several
+        constraints, the first one is selected. The last mapping is dedicated to arrays
+        that do not satisfy any constraint.
 
         See also:
-            :class:`inox.tree_util.tree_mask` and :class:`inox.tree_util.tree_partition`
+            :class:`inox.tree_util.tree_partition`
 
         Arguments:
             filters: A set of filtering constraints. Types are transformed into
@@ -175,7 +176,7 @@ class Module(Namespace):
             >>> model = static(params, others)  # updated copy
 
             >>> model.layers[3].frozen = True
-            >>> filtr = lambda x: hasattr(x, 'frozen')
+            >>> filtr = lambda x: getattr(x, 'frozen', False)
             >>> static, frozen, params, others = model.partition(filtr, nn.Parameter)
             >>> print(inox.tree_repr(frozen))
             {'.layers[3].bias.value': float32[5], '.layers[3].weight.value': float32[64, 5]}
@@ -183,10 +184,17 @@ class Module(Namespace):
             {'.layers[0].bias.value': float32[64], '.layers[0].weight.value': float32[3, 64]}
         """
 
-        is_leaf = lambda x: jtu.all_leaves((x,))
-        is_static = lambda x: is_leaf(x) and not is_array(x)
+        treedef, *leaves = tree_partition(self, *filters)
 
-        treedef, static, *arrays = tree_partition(self, is_static, *filters)
+        static = {}
+        arrays = [{} for _ in leaves]
+
+        for i, partition in enumerate(leaves):
+            for path, leaf in partition.items():
+                if is_array(leaf):
+                    arrays[i][path] = leaf
+                else:
+                    static[path] = leaf
 
         return ModuleDef(treedef, static), *arrays
 
