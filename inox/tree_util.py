@@ -1,4 +1,4 @@
-r"""Extended utilities for tree-like data structures"""
+r"""Extended utilities for tree-like data structures."""
 
 __all__ = [
     "Namespace",

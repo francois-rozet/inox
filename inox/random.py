@@ -1,4 +1,4 @@
-r"""Extended utilities for random number generation"""
+r"""Extended utilities for random number generation."""
 
 __all__ = [
     "PRNG",

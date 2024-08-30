@@ -1,4 +1,4 @@
-r"""Extended NumPy interface"""
+r"""Extended NumPy interface."""
 
 __all__ = [
     "flatten",

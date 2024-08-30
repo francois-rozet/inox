@@ -1,4 +1,4 @@
-r"""Neural networks, layers and modules"""
+r"""Neural networks, layers and modules."""
 
 from .activation import *
 from .attention import *

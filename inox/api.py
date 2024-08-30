@@ -1,4 +1,4 @@
-r"""Extended user-facing transformations and utilities
+r"""Extended user-facing transformations and utilities.
 
 The transformations provided in the :mod:`inox.api` module are lifted versions of native
 JAX transformations for which all non-array leaves (:py:`float`, :py:`str`, functions,

@@ -1,4 +1,4 @@
-r"""Extended utilities for debugging"""
+r"""Extended utilities for debugging."""
 
 __all__ = [
     "same_trace",
