@@ -12,7 +12,6 @@ from einops import rearrange
 from jax import Array
 from typing import Union
 
-# isort: split
 from .linear import Linear
 from .module import Module
 from ..random import get_rng

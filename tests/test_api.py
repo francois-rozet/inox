@@ -1,6 +1,7 @@
 r"""Tests for the inox.api module."""
 
 from functools import partial
+
 from inox.api import *
 from inox.api import inner, outer
 from inox.tree_util import Static

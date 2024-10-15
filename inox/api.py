@@ -24,7 +24,6 @@ from functools import cache, wraps
 from jax._src.api import api_boundary
 from typing import Callable
 
-# isort: split
 from .tree_util import tree_mask, tree_unmask
 
 

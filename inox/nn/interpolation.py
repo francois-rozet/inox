@@ -11,7 +11,6 @@ from functools import partial
 from jax import Array
 from typing import Sequence
 
-# isort: split
 from .module import Module
 from ..numpy import vectorize
 

@@ -22,7 +22,6 @@ import jax.numpy as jnp
 from jax import Array
 from typing import Sequence, Union
 
-# isort: split
 from .module import Module
 
 

@@ -12,7 +12,6 @@ from contextlib import contextmanager
 from jax import Array
 from typing import Any, Union
 
-# isort: split
 from .debug import same_trace
 from .tree_util import Namespace
 

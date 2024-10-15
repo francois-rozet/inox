@@ -7,10 +7,11 @@ import numpy as np
 import pickle
 import pytest
 
+from typing import *
+
 from inox import api
 from inox.nn import *
 from inox.tree_util import is_array
-from typing import *
 
 
 def test_Module():

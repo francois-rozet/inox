@@ -5,9 +5,10 @@ import jax.tree_util as jtu
 import pickle
 import pytest
 
-from inox.tree_util import *
 from jax import Array
 from typing import *
+
+from inox.tree_util import *
 
 
 def tree_eq(x, y):

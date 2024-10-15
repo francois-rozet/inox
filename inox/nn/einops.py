@@ -15,7 +15,6 @@ import einops
 
 from jax import Array
 
-# isort: split
 from .module import Module
 
 

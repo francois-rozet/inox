@@ -1,8 +1,9 @@
 r"""Doctests configuration."""
 
-import inox
 import jax
 import pytest
+
+import inox
 
 
 @pytest.fixture(autouse=True, scope="module")

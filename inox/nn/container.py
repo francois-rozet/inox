@@ -8,7 +8,6 @@ __all__ = [
 from textwrap import indent
 from typing import Any
 
-# isort: split
 from .module import Module
 from ..tree_util import tree_repr
 

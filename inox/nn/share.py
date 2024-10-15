@@ -61,7 +61,6 @@ import jax.tree_util as jtu
 
 from typing import Any, Hashable
 
-# isort: split
 from .module import Module
 from ..tree_util import PyTreeMeta, tree_repr
 

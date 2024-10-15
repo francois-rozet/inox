@@ -77,7 +77,6 @@ import jax.tree_util as jtu
 
 from typing import Any, Dict, Hashable, NamedTuple, Tuple
 
-# isort: split
 from ..tree_util import PyTree
 
 
