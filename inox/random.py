@@ -9,8 +9,9 @@ __all__ = [
 import jax
 
 from contextlib import contextmanager
+from functools import partial
 from jax import Array
-from typing import Any, Union
+from typing import Any, Dict, Union
 
 from .debug import same_trace
 from .tree import Namespace
@@ -49,7 +50,7 @@ class PRNG(Namespace):
         attr = getattr(jax.random, name)
 
         if callable(attr):
-            return lambda *args, **kwargs: attr(self.split(), *args, **kwargs)
+            return partial(attr, self.split())
         else:
             return attr
 
@@ -68,7 +69,7 @@ class PRNG(Namespace):
             keys = jax.random.split(self.state, num=num + 1)
 
         assert same_trace(self.state, keys), (
-            "the PRNG was initialized and used within different JIT traces."
+            "the RNG state was initialized and used within different JIT traces."
         )
 
         if num is None:
@@ -79,41 +80,50 @@ class PRNG(Namespace):
         return key
 
 
-INOX_RNG: PRNG = None
+INOX_RNG: Dict[str, PRNG] = {}
 
 
 @contextmanager
-def set_rng(rng: PRNG):
-    r"""Sets the PRNG within a context.
+def set_rng(**rngs: Dict[str, PRNG]):
+    r"""Sets named RNG states within a context.
 
     See also:
-        :class:`PRNG` and :func:`get_rng`
+        :func:`get_rng`
 
     Arguments:
-        rng: A PRNG instance.
+        rngs: Named :class:`PRNG` instances.
 
     Example:
-        >>> with set_rng(PRNG(0)):
-        ...     a = get_rng().split()
-        ...     b = get_rng().normal((2, 3))
+        >>> with set_rng(init=PRNG(0), dropout=PRNG(42)):
+        ...     keys = get_rng("init").split(3)
+        ...     mask = get_rng("dropout").bernoulli(shape=(2, 3))
     """
 
-    global INOX_RNG
+    old = {}
+    nil = object()
 
     try:
-        old, INOX_RNG = INOX_RNG, rng
+        for name, rng in rngs.items():
+            old[name], INOX_RNG[name] = INOX_RNG.get(name, nil), rng
         yield
     finally:
-        INOX_RNG = old
+        for name, rng in old.items():
+            if rng is nil:
+                del INOX_RNG[name]
+            else:
+                INOX_RNG[name] = rng
 
 
-def get_rng() -> PRNG:
-    r"""Returns the context-bound PRNG.
+def get_rng(name: str) -> PRNG:
+    r"""Returns a context-bound RNG state given its name.
 
     See also:
-        :class:`PRNG` and :func:`set_rng`
+        :func:`set_rng`
+
+    Arguments:
+        name: The RNG state's name.
     """
 
-    global INOX_RNG
-    assert INOX_RNG is not None, "no PRNG is set in this context."
-    return INOX_RNG
+    assert name in INOX_RNG, f"no RNG state with name '{name}' is set in this context."
+
+    return INOX_RNG[name]

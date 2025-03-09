@@ -28,7 +28,7 @@ class Linear(Module):
         out_features: The number of output features :math:`C'`.
         bias: Whether the layer learns an additive bias :math:`b` or not.
         key: A PRNG key for initialization. If :py:`None`,
-            :func:`inox.random.get_rng` is used instead.
+            :py:`inox.random.get_rng("init")` is used instead.
     """
 
     def __init__(
@@ -39,7 +39,7 @@ class Linear(Module):
         key: Array = None,
     ):
         if key is None:
-            key = get_rng().split()
+            key = get_rng("init").split()
 
         scale = 1 / math.sqrt(in_features)
 
@@ -92,7 +92,7 @@ class Conv(Module):
         groups: The number of channel groups :math:`G`.
             Both :math:`C` and :math:`C'` must be divisible by :math:`G`.
         key: A PRNG key for initialization. If :py:`None`,
-            :func:`inox.random.get_rng` is used instead.
+            :func:`inox.random.get_rng("init")` is used instead.
     """
 
     def __init__(
@@ -108,7 +108,7 @@ class Conv(Module):
         key: Array = None,
     ):
         if key is None:
-            key = get_rng().split()
+            key = get_rng("init").split()
 
         if isinstance(stride, int):
             stride = [stride] * len(kernel_size)

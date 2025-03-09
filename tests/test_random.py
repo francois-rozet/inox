@@ -7,7 +7,7 @@ import pytest
 
 from typing import Hashable
 
-from inox.random import PRNG
+from inox.random import PRNG, get_rng, set_rng
 
 
 @pytest.mark.parametrize("seed", [0, jax.random.key(0)])
@@ -44,3 +44,15 @@ def test_PRNG(seed):
 
     # Print
     assert repr(rng)
+
+
+@pytest.mark.parametrize("seed", [0, jax.random.key(0)])
+def test_set_rng(seed):
+    with set_rng(init=PRNG(seed), dropout=PRNG(seed)):
+        a = get_rng("init").split()
+        b = get_rng("dropout").split()
+
+        assert jnp.allclose(a, b)
+
+    with pytest.raises(AssertionError):
+        get_rng("init")

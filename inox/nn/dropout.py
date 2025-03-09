@@ -70,7 +70,8 @@ class TrainingDropout(Dropout):
         r"""
         Arguments:
             x: The input tensor :math:`x`, with shape :math:`(*)`.
-            key: A PRNG key. If :py:`None`, :func:`inox.random.get_rng` is used instead.
+            key: A PRNG key. If :py:`None`, :py:`inox.random.get_rng("dropout")`
+                is used instead.
 
         Returns:
             The output tensor :math:`y`, with shape :math:`(*)`.
@@ -78,7 +79,7 @@ class TrainingDropout(Dropout):
 
         if self.training:
             if key is None:
-                key = get_rng().split()
+                key = get_rng("dropout").split()
 
             return super().__call__(x, key)
         else:

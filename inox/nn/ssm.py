@@ -119,7 +119,7 @@ class S4(SISO):
 
     def __init__(self, hid_features: int, key: Array = None):
         if key is None:
-            keys = get_rng().split(3)
+            keys = get_rng("init").split(3)
         else:
             keys = jax.random.split(key, 3)
 

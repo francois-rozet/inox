@@ -101,7 +101,7 @@ class GRUCell(Cell):
         hid_features: The number of hidden features :math:`H`.
         bias: Whether the cell learns additive biases or not.
         key: A PRNG key for initialization. If :py:`None`,
-            :func:`inox.random.get_rng` is used instead.
+            :py:`inox.random.get_rng("init")` is used instead.
     """
 
     def __init__(
@@ -112,7 +112,7 @@ class GRUCell(Cell):
         key: Array = None,
     ):
         if key is None:
-            keys = get_rng().split(2)
+            keys = get_rng("init").split(2)
         else:
             keys = jax.random.split(key, 2)
 
@@ -163,7 +163,7 @@ class LSTMCell(Cell):
         hid_features: The number of hidden features :math:`H`.
         bias: Whether the cell learns additive biases or not.
         key: A PRNG key for initialization. If :py:`None`,
-            :func:`inox.random.get_rng` is used instead.
+            :py:`inox.random.get_rng("init")` is used instead.
     """
 
     def __init__(
@@ -174,7 +174,7 @@ class LSTMCell(Cell):
         key: Array = None,
     ):
         if key is None:
-            keys = get_rng().split(2)
+            keys = get_rng("init").split(2)
         else:
             keys = jax.random.split(key, 2)
 

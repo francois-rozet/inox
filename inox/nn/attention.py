@@ -80,7 +80,7 @@ class MultiheadAttention(Module):
             :math:`j - i \leq T - S`.
         dropout: The dropout rate on attention weights.
         key: A PRNG key for initialization. If :py:`None`,
-            :func:`inox.random.get_rng` is used instead.
+            :py:`inox.random.get_rng("init")` is used instead.
     """
 
     def __init__(
@@ -95,7 +95,7 @@ class MultiheadAttention(Module):
         key: Array = None,
     ):
         if key is None:
-            keys = get_rng().split(4)
+            keys = get_rng("init").split(4)
         else:
             keys = jax.random.split(key, 4)
 
