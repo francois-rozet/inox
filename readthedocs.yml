@@ -7,8 +7,7 @@ build:
   jobs:
     post_install:
       - pip install -U setuptools jax[cpu]
-      - pip install -e .
-      - pip install -r docs/requirements.txt
+      - pip install -e .[docs]
 
 sphinx:
   configuration: docs/conf.py

@@ -16,16 +16,28 @@ classifiers = [
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
 ]
-dynamic = ["dependencies", "version"]
+dependencies = [
+  "einops>=0.5.0",
+  "jax>=0.4.26",
+]
+dynamic = ["version"]
 keywords = ["jax", "pytree", "neural networks", "deep learning"]
 readme = "README.md"
 requires-python = ">=3.9"
 
 [project.optional-dependencies]
-dev = [
-  "pre-commit",
-  "pytest",
-  "ruff",
+docs = [
+  "docutils==0.19",
+  "furo==2024.5.6",
+  "myst-nb==1.0.0",
+  "sphinx==7.3.7",
+]
+lint = [
+  "pre-commit>=3.7.0",
+  "ruff==0.9.9",
+]
+test = [
+  "pytest>=8.0.0",
 ]
 
 [project.urls]
@@ -55,7 +67,6 @@ section-order = ["future", "third-party", "first-party", "local-folder"]
 preview = true
 
 [tool.setuptools.dynamic]
-dependencies = {file = "requirements.txt"}
 version = {attr = "inox.__version__"}
 
 [tool.setuptools.packages.find]
