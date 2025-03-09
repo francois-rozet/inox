@@ -30,13 +30,13 @@ class PRNG(Namespace):
     Example:
         >>> rng = PRNG(42)
         >>> rng.split()  # generates a key
-        Array([2465931498, 3679230171], dtype=uint32)
+        Array([1832780943,  270669613], dtype=uint32)
         >>> rng.split(3)  # generates a vector of 3 keys
-        Array([[ 956272045, 3465119146],
-               [1903583750,  988321301],
-               [3226638877, 2833683589]], dtype=uint32)
+        Array([[3187376881,  129218101],
+               [2350016172, 1168365246],
+               [ 257214496,  567757975]], dtype=uint32)
         >>> rng.normal((5,))
-        Array([ 0.5694761 , -1.4582146 ,  0.2309113 , -0.03029377,  0.11095619],      dtype=float32)
+        Array([ 0.6611632 , -1.0414096 ,  0.5554834 , -1.8841821 ,  0.36664668],      dtype=float32)
     """
 
     def __init__(self, seed: Union[int, Array], **kwargs):
