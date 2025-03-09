@@ -5,7 +5,7 @@ import jax.numpy as jnp
 
 from functools import partial
 
-from inox.debug import *
+from inox.debug import same_trace
 
 
 def test_same_trace():

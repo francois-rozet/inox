@@ -2,8 +2,7 @@ r"""Tests for the inox.api module."""
 
 from functools import partial
 
-from inox.api import *
-from inox.api import inner, outer
+from inox.api import automask, inner, outer
 from inox.tree import Static
 
 

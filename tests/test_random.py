@@ -5,9 +5,9 @@ import jax.numpy as jnp
 import pickle
 import pytest
 
-from typing import *
+from typing import Hashable
 
-from inox.random import *
+from inox.random import PRNG
 
 
 @pytest.mark.parametrize("seed", [0, jax.random.key(0)])

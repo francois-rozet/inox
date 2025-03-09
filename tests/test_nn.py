@@ -7,21 +7,22 @@ import numpy as np
 import pickle
 import pytest
 
-from typing import *
+from typing import Hashable
+
+import inox.nn as nn
 
 from inox import api
-from inox.nn import *
 from inox.tree import is_array
 
 
 def test_Module():
-    module = Module(
+    module = nn.Module(
         a=0.0,
-        b=Parameter(jnp.ones(1)),
+        b=nn.Parameter(jnp.ones(1)),
         c=[jnp.arange(2), "three"],
         d=False,
-        e=Module(f=np.zeros(5), g=range(6)),
-        h=ComplexParameter(7.0 + 8.0j),
+        e=nn.Module(f=np.zeros(5), g=range(6)),
+        h=nn.ComplexParameter(7.0 + 8.0j),
     )
 
     # Flatten
@@ -41,7 +42,7 @@ def test_Module():
     static(arrays)
 
     ## filters (type)
-    static, params, others = module.partition(Parameter)
+    static, params, others = module.partition(nn.Parameter)
 
     assert all(key.endswith((".value", ".real", ".imag")) for key in params)
     assert all(map(is_array, params.values()))
@@ -81,14 +82,14 @@ def test_MLP(norm: str):
     x = jax.random.normal(key, (1024, 3))
     y = jnp.linalg.norm(x, axis=-1, keepdims=True)
 
-    class MLP(Module):
+    class MLP(nn.Module):
         def __init__(self, key):
             keys = jax.random.split(key)
 
-            self.l1 = Linear(3, 64, key=keys[0])
-            self.l2 = Linear(64, 1, key=keys[1])
-            self.relu = ReLU()
-            self.norm = LayerNorm() if norm == "group" else GroupNorm(4)
+            self.l1 = nn.Linear(3, 64, key=keys[0])
+            self.l2 = nn.Linear(64, 1, key=keys[1])
+            self.relu = nn.ReLU()
+            self.norm = nn.LayerNorm() if norm == "group" else nn.GroupNorm(4)
 
         def __call__(self, x):
             return self.l2(self.norm(self.relu(self.l1(x))))
@@ -114,7 +115,7 @@ def test_MLP(norm: str):
     loss(model)
 
     # Partition
-    static, params, others = model.partition(Parameter)
+    static, params, others = model.partition(nn.Parameter)
 
     assert all(key.endswith(".value") for key in params)
     assert all(map(is_array, params.values()))
@@ -134,14 +135,14 @@ def test_BatchNorm():
     x = jax.random.uniform(key, (1024, 3))
     y = jnp.linalg.norm(x, axis=-1, keepdims=True)
 
-    class MLP(Module):
+    class MLP(nn.Module):
         def __init__(self, key):
             keys = jax.random.split(key)
 
-            self.l1 = Linear(3, 64, key=keys[0])
-            self.l2 = Linear(64, 1, key=keys[1])
-            self.relu = ReLU()
-            self.norm = BatchNorm(64)
+            self.l1 = nn.Linear(3, 64, key=keys[0])
+            self.l2 = nn.Linear(64, 1, key=keys[1])
+            self.relu = nn.ReLU()
+            self.norm = nn.BatchNorm(64)
 
         def __call__(self, x, state):
             x = self.l1(x)
@@ -153,7 +154,7 @@ def test_BatchNorm():
 
     # __init__
     model = MLP(key)
-    model, state = export_state(model)
+    model, state = nn.export_state(model)
 
     # __call__
     z, new = model(x, state)
@@ -180,7 +181,7 @@ def test_BatchNorm():
     _, state = loss(model, state)
 
     # Partition
-    static, params, others = model.partition(Parameter)
+    static, params, others = model.partition(nn.Parameter)
 
     assert all(key.endswith(".value") for key in params)
     assert all(map(is_array, params.values()))
@@ -203,19 +204,19 @@ def test_share():
     x = jax.random.uniform(key, (1024, 3))
     y = jnp.linalg.norm(x, axis=-1, keepdims=True)
 
-    class MLP(Scope):
+    class MLP(nn.Scope):
         def __init__(self, key):
             keys = jax.random.split(key, 3)
 
-            self.l1 = Linear(in_features=3, out_features=64, key=keys[0])
-            self.l2 = Linear(in_features=64, out_features=64, key=keys[1])
-            self.l4 = Linear(in_features=64, out_features=1, key=keys[2])
-            self.relu = ReLU()
+            self.l1 = nn.Linear(in_features=3, out_features=64, key=keys[0])
+            self.l2 = nn.Linear(in_features=64, out_features=64, key=keys[1])
+            self.l4 = nn.Linear(in_features=64, out_features=1, key=keys[2])
+            self.relu = nn.ReLU()
 
-            self.l2 = Reference("l2", self.l2)
+            self.l2 = nn.Reference("l2", self.l2)
             self.l2.cycle = self.l2
             self.l3 = self.l2
-            self.l4.weight = Reference("l4.weight", self.l4.weight)
+            self.l4.weight = nn.Reference("l4.weight", self.l4.weight)
             self.void = self.l4.weight
 
         def __call__(self, x):
@@ -247,7 +248,7 @@ def test_share():
     loss(model)
 
     # Partition
-    static, params, others = model.partition(Parameter)
+    static, params, others = model.partition(nn.Parameter)
 
     assert not any(key.startswith(".l3") or key.startswith(".void") for key in params)
     assert all(key.endswith(".value") for key in params)
