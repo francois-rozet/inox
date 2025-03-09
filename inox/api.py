@@ -24,7 +24,7 @@ from functools import cache, wraps
 from jax._src.api import api_boundary
 from typing import Callable
 
-from .tree_util import tree_mask, tree_unmask
+from inox.tree import mask_static, unmask_static
 
 
 @cache
@@ -38,7 +38,7 @@ def inner(fun: Callable):
     @wraps(fun)
     @api_boundary
     def wrapped(*args, **kwargs):
-        return tree_mask(fun(*tree_unmask(args), **tree_unmask(kwargs)))
+        return mask_static(fun(*unmask_static(args), **unmask_static(kwargs)))
 
     wrapped.__inner__ = wrapped
 
@@ -55,7 +55,7 @@ def outer(fun: Callable):
     @wraps(fun)
     @api_boundary
     def wrapped(*args, **kwargs):
-        return tree_unmask(fun(*tree_mask(args), **tree_mask(kwargs)))
+        return unmask_static(fun(*mask_static(args), **mask_static(kwargs)))
 
     wrapped.__outer__ = wrapped
 
@@ -75,11 +75,11 @@ def automask(transform: Callable) -> Callable:
 
     .. code-block:: python
 
-        g = lambda x: inox.tree_mask(f(inox.tree_unmask(x)))
-        y = inox.tree_unmask(jax.tf(g)(inox.tree_mask(x)))
+        g = lambda x: inox.tree.mask_static(f(inox.tree.unmask_static(x)))
+        y = inox.tree.unmask_static(jax.tf(g)(inox.tree.mask_static(x)))
 
     See also:
-        :func:`inox.tree_util.tree_mask`
+        :func:`inox.tree.mask_static`
 
     Arguments:
         transform: The transformation to lift.

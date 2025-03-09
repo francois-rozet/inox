@@ -11,7 +11,7 @@ from typing import *
 
 from inox import api
 from inox.nn import *
-from inox.tree_util import is_array
+from inox.tree import is_array
 
 
 def test_Module():

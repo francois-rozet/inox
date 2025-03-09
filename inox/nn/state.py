@@ -77,7 +77,7 @@ import jax.tree_util as jtu
 
 from typing import Any, Dict, Hashable, NamedTuple, Tuple
 
-from ..tree_util import PyTree
+import inox.tree
 
 
 def is_entry(x: Any) -> bool:
@@ -127,7 +127,7 @@ def update_state(state: Dict, mutation: Dict) -> Dict:
     return state
 
 
-def export_state(tree: PyTree) -> Tuple[PyTree, Dict]:
+def export_state(tree: inox.tree.PyTree) -> Tuple[inox.tree.PyTree, Dict]:
     r"""Pulls the state entries out of a tree.
 
     State entries are replaced by state keys which can be used to index the state

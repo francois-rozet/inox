@@ -13,7 +13,7 @@ from jax import Array
 from typing import Any, Union
 
 from .debug import same_trace
-from .tree_util import Namespace
+from .tree import Namespace
 
 
 class PRNG(Namespace):

@@ -8,8 +8,9 @@ __all__ = [
 from textwrap import indent
 from typing import Any
 
+import inox.tree
+
 from .module import Module
-from ..tree_util import tree_repr
 
 
 class Sequential(Module):
@@ -38,7 +39,7 @@ class Sequential(Module):
         return x
 
     def tree_repr(self, **kwargs) -> str:
-        lines = (tree_repr(layer, **kwargs) for layer in self.layers)
+        lines = (inox.tree.prepr(layer, **kwargs) for layer in self.layers)
         lines = ",\n".join(lines)
 
         if lines:

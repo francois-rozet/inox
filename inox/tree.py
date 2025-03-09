@@ -4,11 +4,11 @@ __all__ = [
     "Namespace",
     "Partial",
     "Static",
-    "tree_mask",
-    "tree_unmask",
-    "tree_partition",
-    "tree_combine",
-    "tree_repr",
+    "mask_static",
+    "unmask_static",
+    "partition",
+    "combine",
+    "prepr",
 ]
 
 import dataclasses
@@ -60,7 +60,7 @@ class Namespace(metaclass=PyTreeMeta):
           b = '2',
           c = [3, False]
         )
-        >>> jax.tree_util.tree_leaves(tree)
+        >>> jax.tree.leaves(tree)
         [1, '2', 3, False]
     """
 
@@ -68,13 +68,13 @@ class Namespace(metaclass=PyTreeMeta):
         self.__dict__.update(**kwargs)
 
     def __repr__(self) -> str:
-        return tree_repr(self)
+        return prepr(self)
 
     def tree_repr(self, **kwargs) -> str:
         private = kwargs.get("private", False)
 
         lines = (
-            f"{name} = {tree_repr(getattr(self, name), **kwargs)}"
+            f"{name} = {prepr(getattr(self, name), **kwargs)}"
             for name in sorted(self.__dict__.keys())
             if not name.startswith("_") or private
         )
@@ -146,9 +146,9 @@ class Static(metaclass=PyTreeMeta):
         >>> tree = Static((0, 'one', None))
         >>> tree.value
         (0, 'one', None)
-        >>> jax.tree_util.tree_leaves(tree)
+        >>> jax.tree.leaves(tree)
         []
-        >>> jax.tree_util.tree_structure(tree)
+        >>> jax.tree.structure(tree)
         PyTreeDef(CustomNode(Static[(0, 'one', None)], []))
     """
 
@@ -171,7 +171,7 @@ class Static(metaclass=PyTreeMeta):
         return self.tree_repr()
 
     def tree_repr(self, **kwargs) -> str:
-        return f"{self.__class__.__name__}({tree_repr(self.value, **kwargs)})"
+        return f"{self.__class__.__name__}({prepr(self.value, **kwargs)})"
 
     def tree_flatten(self):
         return (), self.value
@@ -187,7 +187,7 @@ class Static(metaclass=PyTreeMeta):
         return self
 
 
-def tree_mask(
+def mask_static(
     tree: PyTree,
     is_static: Callable[[Any], bool] = None,
 ) -> PyTree:
@@ -195,10 +195,10 @@ def tree_mask(
 
     The structure of the tree remains unchanged, but leaves that are considered static
     are wrapped into a :class:`Static` instance, which hides them from
-    :func:`jax.tree_util.tree_leaves` and :func:`jax.tree_util.tree_map`.
+    :func:`jax.tree.leaves` and :func:`jax.tree.map`.
 
     See also:
-        :func:`tree_unmask`
+        :func:`inox.tree.unmask_static`
 
     Arguments:
         tree: The tree to mask.
@@ -210,11 +210,11 @@ def tree_mask(
 
     Example:
         >>> tree = [1, jax.numpy.arange(2), 'three']
-        >>> jax.tree_util.tree_leaves(tree)
+        >>> jax.tree.leaves(tree)
         [1, Array([0, 1], dtype=int32), 'three']
-        >>> tree = tree_mask(tree); tree
+        >>> tree = inox.tree.mask_static(tree); tree
         [Static(1), Array([0, 1], dtype=int32), Static('three')]
-        >>> jax.tree_util.tree_leaves(tree)
+        >>> jax.tree.leaves(tree)
         [Array([0, 1], dtype=int32)]
     """
 
@@ -227,11 +227,11 @@ def tree_mask(
     )
 
 
-def tree_unmask(tree: PyTree) -> PyTree:
+def unmask_static(tree: PyTree) -> PyTree:
     r"""Unmasks the static leaves of a masked tree.
 
     See also:
-        :func:`tree_mask`
+        :func:`inox.tree.mask_static`
 
     Arguments:
         tree: The masked tree to unmask.
@@ -241,7 +241,7 @@ def tree_unmask(tree: PyTree) -> PyTree:
 
     Example:
         >>> tree = [Static(1), jax.numpy.arange(2), Static('three')]
-        >>> tree_unmask(tree)
+        >>> inox.tree.unmask_static(tree)
         [1, Array([0, 1], dtype=int32), 'three']
     """
 
@@ -254,7 +254,7 @@ def tree_unmask(tree: PyTree) -> PyTree:
     )
 
 
-def tree_partition(
+def partition(
     tree: PyTree,
     *filters: Union[type, Callable[[Any], bool]],
     is_leaf: Callable[[Any], bool] = None,
@@ -268,7 +268,7 @@ def tree_partition(
     constraint.
 
     See also:
-        :func:`tree_combine`
+        :func:`inox.tree.combine`
 
     Arguments:
         tree: The tree to flatten.
@@ -281,10 +281,10 @@ def tree_partition(
 
     Example:
         >>> tree = Namespace(a=1, b=jax.numpy.arange(2), c=['three', False])
-        >>> treedef, leaves = tree_partition(tree)
+        >>> treedef, leaves = inox.tree.partition(tree)
         >>> leaves
         {'.a': 1, '.b': Array([0, 1], dtype=int32), '.c[0]': 'three', '.c[1]': False}
-        >>> treedef, arrays, others = tree_partition(tree, jax.Array)
+        >>> treedef, arrays, others = inox.tree.partition(tree, jax.Array)
         >>> arrays
         {'.b': Array([0, 1], dtype=int32)}
         >>> others
@@ -325,14 +325,14 @@ def tree_partition(
     return treedef, *leaves
 
 
-def tree_combine(
+def combine(
     treedef: PyTreeDef,
     *leaves: Dict[str, Any],
 ) -> PyTree:
     r"""Reconstructs a tree from the tree definition and leaf partitions.
 
     See also:
-        :func:`tree_partition`
+        :func:`inox.tree.partition`
 
     Arguments:
         treedef: The tree definition.
@@ -343,9 +343,9 @@ def tree_combine(
 
     Example:
         >>> tree = Namespace(a=1, b=jax.numpy.arange(2), c=['three', False])
-        >>> treedef, arrays, others = tree_partition(tree, jax.Array)
+        >>> treedef, arrays, others = inox.tree.partition(tree, jax.Array)
         >>> others = {key: str(leaf).upper() for key, leaf in others.items()}
-        >>> tree_combine(treedef, arrays, others)
+        >>> inox.tree.combine(treedef, arrays, others)
         Namespace(
           a = '1',
           b = int32[2],
@@ -382,7 +382,7 @@ def tree_combine(
     return tree
 
 
-def tree_repr(
+def prepr(
     tree: PyTree,
     linewidth: int = 88,
     typeonly: bool = True,
@@ -402,7 +402,7 @@ def tree_repr(
     Example:
         >>> tree = [1, 'two', (True, False), list(range(5)), {'6': jax.numpy.arange(7)}]
         >>> tree.append(Namespace(eight=None))
-        >>> print(tree_repr(tree))
+        >>> print(inox.tree.prepr(tree))
         [
           1,
           'two',
@@ -425,7 +425,7 @@ def tree_repr(
     elif dataclasses._is_dataclass_instance(tree):
         bra, ket = f"{type(tree).__name__}(", ")"
         lines = [
-            f"{field.name}={tree_repr(getattr(tree, field.name), **kwargs)}"
+            f"{field.name}={prepr(getattr(tree, field.name), **kwargs)}"
             for field in dataclasses.fields(tree)
             if field.repr
         ]
@@ -433,17 +433,17 @@ def tree_repr(
         if hasattr(tree, "_fields"):
             bra, ket = f"{type(tree).__name__}(", ")"
             lines = [
-                f"{field}={tree_repr(value, **kwargs)}" for field, value in tree._asdict().items()
+                f"{field}={prepr(value, **kwargs)}" for field, value in tree._asdict().items()
             ]
         else:
             bra, ket = "(", ")"
-            lines = [tree_repr(x, **kwargs) for x in tree]
+            lines = [prepr(x, **kwargs) for x in tree]
     elif isinstance(tree, list):
         bra, ket = "[", "]"
-        lines = [tree_repr(x, **kwargs) for x in tree]
+        lines = [prepr(x, **kwargs) for x in tree]
     elif isinstance(tree, dict):
         bra, ket = "{", "}"
-        lines = [f"{repr(key)}: {tree_repr(value, **kwargs)}" for key, value in tree.items()]
+        lines = [f"{repr(key)}: {prepr(value, **kwargs)}" for key, value in tree.items()]
     elif is_array(tree) and typeonly:
         return f"{tree.dtype}{list(tree.shape)}"
     else:

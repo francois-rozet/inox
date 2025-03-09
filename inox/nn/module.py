@@ -63,21 +63,14 @@ import jax.tree_util as jtu
 from jax import Array
 from typing import Any, Callable, Dict, NamedTuple, Tuple, Union
 
-from ..tree_util import (
-    Namespace,
-    PyTreeDef,
-    is_array,
-    tree_combine,
-    tree_partition,
-    tree_repr,
-)
+import inox.tree
 
 
 def is_module(x: Any) -> bool:
     return isinstance(x, Module)
 
 
-class Module(Namespace):
+class Module(inox.tree.Namespace):
     r"""Base class for all modules.
 
     Arguments:
@@ -132,7 +125,7 @@ class Module(Namespace):
         that do not satisfy any constraint.
 
         See also:
-            :class:`inox.tree_util.tree_partition`
+            :class:`inox.tree.partition`
 
         Arguments:
             filters: A set of filtering constraints. Types are transformed into
@@ -150,7 +143,7 @@ class Module(Namespace):
             ...     nn.Linear(64, 5, key=keys[1]),
             ... ])
             >>> static, arrays = model.partition()
-            >>> print(inox.tree_repr(arrays))
+            >>> print(inox.tree.prepr(arrays))
             {
               '.layers[0].bias.value': float32[64],
               '.layers[0].weight.value': float32[3, 64],
@@ -160,37 +153,37 @@ class Module(Namespace):
             }
 
             >>> static, params, others = model.partition(nn.Parameter)
-            >>> print(inox.tree_repr(params))
+            >>> print(inox.tree.prepr(params))
             {
               '.layers[0].bias.value': float32[64],
               '.layers[0].weight.value': float32[3, 64],
               '.layers[3].bias.value': float32[5],
               '.layers[3].weight.value': float32[64, 5]
             }
-            >>> print(inox.tree_repr(others))
+            >>> print(inox.tree.prepr(others))
             {'.layers[2].p': float32[]}
 
-            >>> grads = jax.tree_util.tree_map(jax.numpy.ones_like, params)
-            >>> params = jax.tree_util.tree_map(lambda x, y: x + 0.01 * y, params, grads)
+            >>> grads = jax.tree.map(jax.numpy.ones_like, params)
+            >>> params = jax.tree.map(lambda x, y: x + 0.01 * y, params, grads)
             >>> model = static(params, others)  # updated copy
 
             >>> model.layers[3].frozen = True
             >>> filtr = lambda x: getattr(x, 'frozen', False)
             >>> static, frozen, params, others = model.partition(filtr, nn.Parameter)
-            >>> print(inox.tree_repr(frozen))
+            >>> print(inox.tree.prepr(frozen))
             {'.layers[3].bias.value': float32[5], '.layers[3].weight.value': float32[64, 5]}
-            >>> print(inox.tree_repr(params))
+            >>> print(inox.tree.prepr(params))
             {'.layers[0].bias.value': float32[64], '.layers[0].weight.value': float32[3, 64]}
         """
 
-        treedef, *leaves = tree_partition(self, *filters)
+        treedef, *leaves = inox.tree.partition(self, *filters)
 
         static = {}
         arrays = [{} for _ in leaves]
 
         for i, partition in enumerate(leaves):
             for path, leaf in partition.items():
-                if is_array(leaf):
+                if inox.tree.is_array(leaf):
                     arrays[i][path] = leaf
                 else:
                     static[path] = leaf
@@ -209,7 +202,7 @@ class ModuleDef(NamedTuple):
         leaves: The static (non-array) leaves of the module.
     """
 
-    treedef: PyTreeDef
+    treedef: inox.tree.PyTreeDef
     leaves: Dict[str, Any]
 
     def __call__(self, *arrays: Dict[str, Array]) -> Module:
@@ -221,10 +214,10 @@ class ModuleDef(NamedTuple):
             A new instance of the module.
         """
 
-        return tree_combine(self.treedef, self.leaves, *arrays)
+        return inox.tree.combine(self.treedef, self.leaves, *arrays)
 
 
-class Parameter(Namespace):
+class Parameter(inox.tree.Namespace):
     r"""Wrapper to indicate an optimizable array.
 
     All arrays that require gradient updates in a :class:`Module` should be wrapped in a
@@ -260,7 +253,7 @@ class Parameter(Namespace):
         return self.tree_repr()
 
     def tree_repr(self, **kwargs) -> str:
-        return f"{self.__class__.__name__}({tree_repr(self.value, **kwargs)})"
+        return f"{self.__class__.__name__}({inox.tree.prepr(self.value, **kwargs)})"
 
 
 class ComplexParameter(Parameter):

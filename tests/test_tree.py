@@ -6,9 +6,9 @@ import pickle
 import pytest
 
 from jax import Array
-from typing import *
+from typing import Hashable
 
-from inox.tree_util import *
+from inox.tree import Namespace, Static, combine, mask_static, partition, unmask_static
 
 
 def tree_eq(x, y):
@@ -90,7 +90,7 @@ def test_Static(nested: bool):
     assert repr(x)
 
 
-def test_tree_mask():
+def test_mask_static():
     x = Namespace(
         a=jnp.ones(1),
         b=2,
@@ -98,16 +98,16 @@ def test_tree_mask():
         d=Namespace(e="five", f=jnp.eye(6)),
     )
 
-    # tree_mask
-    y = tree_mask(x)
+    # mask_static
+    y = mask_static(x)
 
     leaves, treedef = jtu.tree_flatten(y)
 
     assert all(isinstance(leaf, Array) for leaf in leaves)
     assert isinstance(treedef, Hashable)
 
-    # tree_unmask
-    z = tree_unmask(y)
+    # unmask_static
+    z = unmask_static(y)
 
     leaves, treedef = jtu.tree_flatten(z)
 
@@ -117,7 +117,7 @@ def test_tree_mask():
     assert tree_eq(x, z)
 
 
-def test_tree_partition():
+def test_partition():
     x = Namespace(
         a=jnp.ones(1),
         b=2,
@@ -125,13 +125,13 @@ def test_tree_partition():
         d=Namespace(e="five", f=jnp.eye(6)),
     )
 
-    # tree_partition
-    treedef_a, leaves = tree_partition(x)
+    # partition
+    treedef_a, leaves = partition(x)
 
     assert not all(isinstance(leaf, Array) for leaf in leaves.values())
     assert isinstance(treedef_a, Hashable)
 
-    treedef_b, arrays, others = tree_partition(x, Array)
+    treedef_b, arrays, others = partition(x, Array)
 
     assert all(isinstance(leaf, Array) for leaf in arrays.values())
     assert not any(isinstance(leaf, Array) for leaf in others.values())
@@ -139,15 +139,15 @@ def test_tree_partition():
 
     assert treedef_a == treedef_b
 
-    # tree_combine
-    y = tree_combine(treedef_a, leaves)
-    z = tree_combine(treedef_b, arrays, others)
+    # combine
+    y = combine(treedef_a, leaves)
+    z = combine(treedef_b, arrays, others)
 
     assert tree_eq(x, y)
     assert tree_eq(x, z)
 
     with pytest.raises(KeyError):
-        tree_combine(treedef_a, {})
+        combine(treedef_a, {})
 
     with pytest.raises(KeyError):
-        tree_combine(treedef_a, leaves, {"none": None})
+        combine(treedef_a, leaves, {"none": None})

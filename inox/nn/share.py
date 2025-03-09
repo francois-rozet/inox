@@ -61,8 +61,9 @@ import jax.tree_util as jtu
 
 from typing import Any, Hashable
 
+import inox.tree
+
 from .module import Module
-from ..tree_util import PyTreeMeta, tree_repr
 
 
 class Scope(Module):
@@ -130,7 +131,7 @@ class Scope(Module):
         return super().tree_repr(**kwargs)
 
 
-class Reference(metaclass=PyTreeMeta):
+class Reference(metaclass=inox.tree.PyTreeMeta):
     r"""Creates a reference to a value.
 
     A :class:`Reference` instance forwards :py:`__call__`,  :py:`__getattr__`, and
@@ -199,7 +200,7 @@ class Reference(metaclass=PyTreeMeta):
             return f"@{self.tag}"
         else:
             references.add(self.tag)
-            return f"*{tree_repr(self.value, **kwargs)}"
+            return f"*{inox.tree.prepr(self.value, **kwargs)}"
 
     def tree_flatten(self):
         return [self.value], self.tag
