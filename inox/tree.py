@@ -9,6 +9,8 @@ __all__ = [
     "partition",
     "combine",
     "prepr",
+    "prune",
+    "unprune",
 ]
 
 import dataclasses
@@ -17,7 +19,7 @@ import numpy as np
 
 from jax import Array
 from textwrap import indent
-from typing import Any, Callable, Dict, Hashable, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Hashable, NamedTuple, Tuple, TypeVar, Union
 from warnings import warn
 
 PyTree = TypeVar("PyTree", bound=Any)
@@ -26,6 +28,10 @@ PyTreeDef = TypeVar("PyTreeDef")
 
 def is_array(x: Any) -> bool:
     return isinstance(x, np.ndarray) or isinstance(x, Array)
+
+
+def is_atom(x: Any) -> bool:
+    return x is None or jtu.default_registry.flatten_one_level(x) is None
 
 
 class PyTreeMeta(type):
@@ -65,7 +71,7 @@ class Namespace(metaclass=PyTreeMeta):
     """
 
     def __init__(self, **kwargs):
-        self.__dict__.update(**kwargs)
+        self.__dict__.update(kwargs)
 
     def __repr__(self) -> str:
         return prepr(self)
@@ -473,3 +479,108 @@ def prepr(
         lines = "\n" + indent(lines, "  ") + "\n"
 
     return f"{bra}{lines}{ket}"
+
+
+class Pointer(NamedTuple):
+    address: str
+
+    def __repr__(self) -> str:
+        return self.tree_repr()
+
+    def tree_repr(self, **kwargs) -> str:
+        return self.address
+
+
+def prune(tree: PyTree, memory: Dict[int, Pointer] = None) -> PyTree:
+    r"""Replaces shared node references in a tree with pointers.
+
+    Shared :class:`tuple` references are not preserved.
+
+    Arguments:
+        tree: The tree to prune.
+
+    Returns:
+        The pruned tree.
+
+    Example:
+        >>> node = [1, jax.numpy.arange(2)]
+        >>> tree = [node, node, 'three']
+        >>> tree.append(tree); tree
+        [[1, Array([0, 1], dtype=int32)], [1, Array([0, 1], dtype=int32)], 'three', [...]]
+        >>> tree = inox.tree.prune(tree); tree
+        [[1, Array([0, 1], dtype=int32)], 0x1, 'three', 0x0]
+        >>> inox.tree.unprune(tree)
+        [[1, Array([0, 1], dtype=int32)], [1, Array([0, 1], dtype=int32)], 'three', [...]]
+    """
+
+    if memory is None:
+        memory = {}
+
+    if is_atom(tree):
+        return tree
+    elif id(tree) in memory:
+        return memory[id(tree)]
+
+    address = hex(len(memory))
+
+    if not isinstance(tree, tuple):
+        memory[id(tree)] = Pointer(address)
+
+    to_iter, from_iter = jtu._registry[type(tree)]
+    children, other = to_iter(tree)
+    children = (prune(x, memory=memory) for x in children)
+    copy = from_iter(other, children)
+
+    return copy
+
+
+def unprune(tree: PyTree, memory: Dict[str, Any] = None) -> PyTree:
+    r"""Replaces pointers in a tree with shared references.
+
+    Arguments:
+        tree: The tree to unprune.
+
+    Returns:
+        The unpruned tree.
+    """
+
+    if memory is None:
+        memory = {}
+
+    if is_atom(tree):
+        return tree
+    elif isinstance(tree, Pointer):
+        return memory[tree.address]
+
+    address = hex(len(memory))
+
+    if isinstance(tree, tuple):
+        pass
+    elif type(tree) is list:
+        memory[address] = new = []
+    elif type(tree) is dict:
+        memory[address] = new = {}
+    else:
+        fun, args, *_ = tree.__reduce__()
+        memory[address] = new = fun(*args)
+
+    to_iter, from_iter = jtu._registry[type(tree)]
+    children, other = to_iter(tree)
+    children = (unprune(x, memory=memory) for x in children)
+    copy = from_iter(other, children)
+
+    if isinstance(tree, tuple):
+        new = copy
+    elif type(tree) is list:
+        new.extend(copy)
+    elif type(tree) is dict:
+        new.update(copy)
+    else:
+        _, _, state = copy.__reduce__()
+
+        if hasattr(new, "__setstate__"):
+            new.__setstate__(state)
+        else:
+            new.__dict__.update(state)
+
+    return new
