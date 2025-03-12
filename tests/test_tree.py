@@ -8,7 +8,14 @@ import pytest
 from jax import Array
 from typing import Hashable
 
-from inox.tree import Namespace, Static, combine, mask_static, partition, unmask_static
+from inox.tree import (
+    Namespace,
+    Static,
+    combine,
+    mask_static,
+    partition,
+    unmask_static,
+)
 
 
 def tree_eq(x, y):
@@ -95,7 +102,7 @@ def test_mask_static():
         a=jnp.ones(1),
         b=2,
         c=[jnp.arange(3), False],
-        d=Namespace(e="five", f=jnp.eye(6)),
+        d={"e": "five", "f": jnp.eye(6)},
     )
 
     # mask_static
@@ -106,7 +113,7 @@ def test_mask_static():
     assert all(isinstance(leaf, Array) for leaf in leaves)
     assert isinstance(treedef, Hashable)
 
-    assert jtu.tree_structure(y) == jtu.tree_structure(mask_static(y))
+    assert tree_eq(y, mask_static(y))
 
     # unmask_static
     z = unmask_static(y)
@@ -124,7 +131,7 @@ def test_partition():
         a=jnp.ones(1),
         b=2,
         c=[jnp.arange(3), False],
-        d=Namespace(e="five", f=jnp.eye(6)),
+        d={"e": "five", "f": jnp.eye(6)},
     )
 
     # partition
