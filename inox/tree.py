@@ -402,24 +402,34 @@ def prepr(
 
     Example:
         >>> tree = [1, 'two', (True, False), list(range(5)), {'6': jax.numpy.arange(7)}]
-        >>> tree.append(Namespace(eight=None))
+        >>> tree.append(tree)
         >>> print(inox.tree.prepr(tree))
-        [
-          1,
-          'two',
-          (True, False),
-          [0, 1, 2, 3, 4],
-          {'6': int32[7]},
-          Namespace(
-            eight = None
-          )
-        ]
+        [1, 'two', (True, False), [0, 1, 2, 3, 4], {'6': int32[7]}, [...]]
     """
 
     kwargs.update(
         linewidth=linewidth,
         typeonly=typeonly,
     )
+
+    ancestors = kwargs.setdefault("ancestors", set())
+
+    if id(tree) in ancestors:
+        if hasattr(tree, "tree_repr"):
+            return f"{type(tree).__name__}(...)"
+        elif dataclasses._is_dataclass_instance(tree):
+            return f"{type(tree).__name__}(...)"
+        elif isinstance(tree, tuple):
+            if hasattr(tree, "_fields"):
+                return f"{type(tree).__name__}(...)"
+            else:
+                return "(...)"
+        elif isinstance(tree, list):
+            return "[...]"
+        elif isinstance(tree, dict):
+            return "{...}"
+
+    ancestors.add(id(tree))
 
     if hasattr(tree, "tree_repr"):
         return tree.tree_repr(**kwargs)
@@ -449,6 +459,8 @@ def prepr(
         return f"{tree.dtype}{list(tree.shape)}"
     else:
         return repr(tree).strip(" \n")
+
+    ancestors.remove(id(tree))
 
     if any("\n" in line for line in lines):
         lines = ",\n".join(lines)

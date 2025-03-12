@@ -126,10 +126,6 @@ class Scope(Module):
 
         return super().tree_unflatten(names, unprune(values))
 
-    def tree_repr(self, **kwargs) -> str:
-        kwargs["references"] = set()
-        return super().tree_repr(**kwargs)
-
 
 class Reference(metaclass=inox.tree.PyTreeMeta):
     r"""Creates a reference to a value.
@@ -194,13 +190,7 @@ class Reference(metaclass=inox.tree.PyTreeMeta):
         return self.tree_repr()
 
     def tree_repr(self, **kwargs) -> str:
-        references = kwargs.setdefault("references", set())
-
-        if self.tag in references:
-            return f"@{self.tag}"
-        else:
-            references.add(self.tag)
-            return f"&{inox.tree.prepr(self.value, **kwargs)}"
+        return f"&{inox.tree.prepr(self.value, **kwargs)}"
 
     def tree_flatten(self):
         return [self.value], self.tag
