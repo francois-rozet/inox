@@ -3,11 +3,7 @@ r"""Tests for the inox.api module."""
 from functools import partial
 
 from inox.api import automask, inner, outer
-from inox.tree import Static
-
-
-class SubStatic(Static):
-    pass
+from inox.tree import Mask, Static
 
 
 def test_automask():
@@ -15,32 +11,33 @@ def test_automask():
         assert type(x) is Static
         return x
 
-    def is_not_static(x):
-        assert type(x) is not Static
+    def is_masked(x):
+        assert type(x) is Mask
         return x
 
-    def is_sub_static(x):
-        assert type(x) is SubStatic
+    def is_not_masked(x):
+        assert type(x) is not Mask
         return x
 
     # inner & outer
-    assert is_static(inner(is_not_static)("leaf"))
-    assert is_static(inner(is_not_static)(Static("leaf")))
-    assert is_sub_static(inner(is_sub_static)(SubStatic("leaf")))
-    assert is_not_static(outer(is_static)("leaf"))
-    assert is_not_static(outer(is_static)(Static("leaf")))
-    assert is_sub_static(outer(is_sub_static)(SubStatic("leaf")))
+    assert is_masked(inner(is_not_masked)("leaf"))
+    assert is_masked(inner(is_not_masked)(Mask("leaf")))
+    assert is_static(inner(is_static)(Static("leaf")))
+    assert is_not_masked(outer(is_masked)("leaf"))
+    assert is_not_masked(outer(is_masked)(Mask("leaf")))
+    assert is_static(outer(is_static)(Static("leaf")))
 
     def f(x):
         return x
 
     assert outer(inner(f)) is f
     assert inner(outer(f)) is f
+    assert inner(f) is inner(f)
 
     # automask
-    assert is_not_static(automask(partial)(is_not_static)("leaf"))
-    assert is_not_static(automask(partial)(is_not_static)(Static("leaf")))
-    assert is_sub_static(automask(partial)(is_sub_static)(SubStatic("leaf")))
+    assert is_not_masked(automask(partial)(is_not_masked)("leaf"))
+    assert is_not_masked(automask(partial)(is_not_masked)(Mask("leaf")))
+    assert is_static(automask(partial)(is_static)(Static("leaf")))
 
     assert automask(lambda f: f)(f) is f
     assert automask(partial)(f) is not f

@@ -106,6 +106,8 @@ def test_mask_static():
     assert all(isinstance(leaf, Array) for leaf in leaves)
     assert isinstance(treedef, Hashable)
 
+    assert jtu.tree_structure(y) == jtu.tree_structure(mask_static(y))
+
     # unmask_static
     z = unmask_static(y)
 

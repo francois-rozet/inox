@@ -114,8 +114,8 @@ class Scope(Module):
                     if x.tag in visited:
                         x = visited[x.tag]
                     else:
-                        visited[x.tag] = x
-                        x = Reference(x.tag, unprune(x.value))
+                        x = visited[x.tag] = Reference(x.tag, x.value)
+                        x.value = unprune(x.value)
 
                 return x
 
@@ -147,8 +147,8 @@ class Reference(metaclass=inox.tree.PyTreeMeta):
 
     Example:
         >>> weight = Reference('my-ref', nn.Parameter(jax.numpy.ones((3, 5))))
-        >>> weight  # repr preceded by an asterisk
-        *Parameter(float32[3, 5])
+        >>> weight  # repr preceded by &
+        &Parameter(float32[3, 5])
         >>> weight.shape
         (3, 5)
         >>> weight()
@@ -200,7 +200,7 @@ class Reference(metaclass=inox.tree.PyTreeMeta):
             return f"@{self.tag}"
         else:
             references.add(self.tag)
-            return f"*{inox.tree.prepr(self.value, **kwargs)}"
+            return f"&{inox.tree.prepr(self.value, **kwargs)}"
 
     def tree_flatten(self):
         return [self.value], self.tag

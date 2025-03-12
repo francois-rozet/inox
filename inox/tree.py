@@ -187,6 +187,10 @@ class Static(metaclass=PyTreeMeta):
         return self
 
 
+class Mask(Static):
+    pass
+
+
 def mask_static(
     tree: PyTree,
     is_static: Callable[[Any], bool] = None,
@@ -194,8 +198,8 @@ def mask_static(
     r"""Masks the static leaves of a tree.
 
     The structure of the tree remains unchanged, but leaves that are considered static
-    are wrapped into a :class:`Static` instance, which hides them from
-    :func:`jax.tree.leaves` and :func:`jax.tree.map`.
+    are masked, which hides them from :func:`jax.tree.leaves` and :func:`jax.tree.map`.
+    Applying :func:`inox.tree.mask_static` several times leads to the same tree.
 
     See also:
         :func:`inox.tree.unmask_static`
@@ -213,16 +217,18 @@ def mask_static(
         >>> jax.tree.leaves(tree)
         [1, Array([0, 1], dtype=int32), 'three']
         >>> tree = inox.tree.mask_static(tree); tree
-        [Static(1), Array([0, 1], dtype=int32), Static('three')]
+        [Mask(1), Array([0, 1], dtype=int32), Mask('three')]
         >>> jax.tree.leaves(tree)
         [Array([0, 1], dtype=int32)]
+        >>> inox.tree.unmask_static(tree)
+        [1, Array([0, 1], dtype=int32), 'three']
     """
 
     if is_static is None:
         is_static = lambda x: not is_array(x)
 
     return jtu.tree_map(
-        f=lambda x: Static(x) if is_static(x) else x,
+        f=lambda x: Mask(x) if is_static(x) else x,
         tree=tree,
     )
 
@@ -238,19 +244,14 @@ def unmask_static(tree: PyTree) -> PyTree:
 
     Returns:
         The unmasked tree.
-
-    Example:
-        >>> tree = [Static(1), jax.numpy.arange(2), Static('three')]
-        >>> inox.tree.unmask_static(tree)
-        [1, Array([0, 1], dtype=int32), 'three']
     """
 
-    is_static = lambda x: type(x) is Static
+    is_masked = lambda x: type(x) is Mask
 
     return jtu.tree_map(
-        f=lambda x: x.value if is_static(x) else x,
+        f=lambda x: x.value if is_masked(x) else x,
         tree=tree,
-        is_leaf=is_static,
+        is_leaf=is_masked,
     )
 
 

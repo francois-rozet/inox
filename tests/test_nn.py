@@ -23,7 +23,11 @@ def test_Module():
         d=False,
         e=nn.Module(f=np.zeros(5), g=range(6)),
         h=nn.ComplexParameter(7.0 + 8.0j),
+        i=nn.Scope(j=nn.Reference("i.j", {9: None})),
     )
+
+    module.i.k = module.i.j
+    module.i.k[10] = module.i.j
 
     # Flatten
     leaves, treedef = jtu.tree_flatten(module)
@@ -31,7 +35,10 @@ def test_Module():
     assert not all(map(is_array, leaves))
     assert isinstance(treedef, Hashable)
 
-    jtu.tree_unflatten(treedef, leaves)
+    copy = jtu.tree_unflatten(treedef, leaves)
+
+    assert copy.i.j is copy.i.k
+    assert copy.i.j is copy.i.k[10]
 
     # Partition
     static, arrays = module.partition()
@@ -221,7 +228,7 @@ def test_share():
 
         def __call__(self, x):
             x = self.l1(x)
-            x = self.l2(self.relu(x))
+            x = self.l2.cycle(self.relu(x))
             x = self.l3(self.relu(x))
             x = self.l4(self.relu(x))
 
@@ -250,6 +257,7 @@ def test_share():
     # Partition
     static, params, others = model.partition(nn.Parameter)
 
+    assert not any(".cycle" in key for key in params)
     assert not any(key.startswith(".l3") or key.startswith(".void") for key in params)
     assert all(key.endswith(".value") for key in params)
     assert all(map(is_array, params.values()))

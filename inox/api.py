@@ -21,7 +21,6 @@ __all__ = [
 import jax
 
 from functools import cache, wraps
-from jax._src.api import api_boundary
 from typing import Callable
 
 from inox.tree import mask_static, unmask_static
@@ -36,7 +35,6 @@ def inner(fun: Callable):
         return fun.__wrapped__
 
     @wraps(fun)
-    @api_boundary
     def wrapped(*args, **kwargs):
         return mask_static(fun(*unmask_static(args), **unmask_static(kwargs)))
 
@@ -53,7 +51,6 @@ def outer(fun: Callable):
         return fun
 
     @wraps(fun)
-    @api_boundary
     def wrapped(*args, **kwargs):
         return unmask_static(fun(*mask_static(args), **mask_static(kwargs)))
 
@@ -89,7 +86,6 @@ def automask(transform: Callable) -> Callable:
     """
 
     @wraps(transform)
-    @api_boundary
     def wrapped(fun: Callable, *args, **kwargs) -> Callable:
         return outer(transform(inner(fun), *args, **kwargs))
 
