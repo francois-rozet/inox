@@ -65,7 +65,7 @@ class Namespace(metaclass=PyTreeMeta):
     """
 
     def __init__(self, **kwargs):
-        self.__dict__.update(**kwargs)
+        self.__dict__.update(kwargs)
 
     def __repr__(self) -> str:
         return prepr(self)
@@ -199,7 +199,7 @@ def mask_static(
 
     The structure of the tree remains unchanged, but leaves that are considered static
     are masked, which hides them from :func:`jax.tree.leaves` and :func:`jax.tree.map`.
-    Applying :func:`inox.tree.mask_static` several times leads to the same tree.
+    Applying :func:`inox.tree.mask_static` more than once leads to the same tree.
 
     See also:
         :func:`inox.tree.unmask_static`

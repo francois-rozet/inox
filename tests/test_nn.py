@@ -40,6 +40,12 @@ def test_Module():
     assert copy.i.j is copy.i.k
     assert copy.i.j is copy.i.k[10]
 
+    ## Reference conflict
+    copy.i.k = nn.Reference("i.j", "broken")
+
+    with pytest.raises(AssertionError):
+        jtu.tree_flatten(copy)
+
     # Partition
     static, arrays = module.partition()
 
@@ -228,7 +234,7 @@ def test_share():
 
         def __call__(self, x):
             x = self.l1(x)
-            x = self.l2.cycle(self.relu(x))
+            x = self.l2.cycle.cycle(self.relu(x))
             x = self.l3(self.relu(x))
             x = self.l4(self.relu(x))
 
