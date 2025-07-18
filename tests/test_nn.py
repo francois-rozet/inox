@@ -122,10 +122,10 @@ def test_MLP(norm: str):
 
     # JIT
     @inox.jit
-    def loss(model):
+    def loss(model, x, y):
         return jnp.mean((model(x) - y) ** 2)
 
-    loss(model)
+    loss(model, x, y)
 
     # Partition
     static, params, others = model.partition(nn.Parameter)
@@ -136,8 +136,11 @@ def test_MLP(norm: str):
     assert not any(map(is_array, jtu.tree_leaves(static)))
 
     # Gradients
-    grads = jax.grad(lambda params: loss(static(params, others)))(params)
-    params = jtu.tree_map(lambda x, y: x + y, params, grads)
+    def ell(params):
+        return loss(static(params, others), x, y)
+
+    grads = jax.grad(ell)(params)
+    params = jtu.tree_map(jnp.add, params, grads)
 
     # Print
     assert repr(model)
@@ -186,12 +189,12 @@ def test_BatchNorm():
 
     # JIT
     @inox.jit
-    def loss(model, state):
+    def loss(model, state, x, y):
         z, state = model(x, state)
 
         return jnp.mean((z - y) ** 2), state
 
-    _, state = loss(model, state)
+    _, state = loss(model, state, x, y)
 
     # Partition
     static, params, others = model.partition(nn.Parameter)
@@ -203,10 +206,10 @@ def test_BatchNorm():
 
     # Gradients
     def ell(params):
-        return loss(static(params, others), state)
+        return loss(static(params, others), state, x, y)
 
     grads, state = jax.grad(ell, has_aux=True)(params)
-    params = jtu.tree_map(lambda x, y: x + y, params, grads)
+    params = jtu.tree_map(jnp.add, params, grads)
 
     # Print
     assert repr(model)
@@ -255,10 +258,10 @@ def test_share():
 
     # JIT
     @inox.jit
-    def loss(model):
+    def loss(model, x, y):
         return jnp.mean((model(x) - y) ** 2)
 
-    loss(model)
+    loss(model, x, y)
 
     # Partition
     static, params, others = model.partition(nn.Parameter)
@@ -271,8 +274,64 @@ def test_share():
     assert not any(map(is_array, jtu.tree_leaves(static)))
 
     # Gradients
-    grads = jax.grad(lambda params: loss(static(params, others)))(params)
-    params = jtu.tree_map(lambda x, y: x + y, params, grads)
+    def ell(params):
+        return loss(static(params, others), x, y)
+
+    grads = jax.grad(ell)(params)
+    params = jtu.tree_map(jnp.add, params, grads)
+
+    # Print
+    assert repr(model)
+
+
+@pytest.mark.parametrize("heads", [1, 4])
+@pytest.mark.parametrize("causal", [False, True])
+def test_mha(heads: int, causal: bool):
+    key = jax.random.key(0)
+    x = jax.random.normal(key, (3, 5, 64))
+
+    if jax.__version__ < "0.5":
+        pytest.skip("jax<=0.4 does not implement SDPA")
+
+    # __init__
+    model = nn.MultiheadAttention(
+        in_features=64,
+        heads=heads,
+        causal=causal,
+        key=key,
+    )
+
+    # __call__
+    y0 = model(x[0])
+    y1 = model(x)
+    y2 = jax.vmap(model)(x)
+
+    assert y0.shape == x[0].shape
+    assert y1.shape == x.shape
+    assert y2.shape == x.shape
+    assert jnp.allclose(y1, y2)
+
+    # JIT
+    @inox.jit
+    def loss(model, x):
+        return jnp.mean(model(x) ** 2)
+
+    loss(model, x)
+
+    # Partition
+    static, params, others = model.partition(nn.Parameter)
+
+    assert all(key.endswith(".value") for key in params)
+    assert all(map(is_array, params.values()))
+    assert all(map(is_array, others.values()))
+    assert not any(map(is_array, jtu.tree_leaves(static)))
+
+    # Gradients
+    def ell(params):
+        return loss(static(params, others), x)
+
+    grads = jax.grad(ell)(params)
+    params = jtu.tree_map(jnp.add, params, grads)
 
     # Print
     assert repr(model)

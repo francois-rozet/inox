@@ -6,7 +6,6 @@ __all__ = [
 
 import jax
 import jax.numpy as jnp
-import math
 
 from einops import rearrange
 from jax import Array
@@ -15,39 +14,6 @@ from typing import Union
 from .linear import Linear
 from .module import Module
 from ..random import get_rng
-
-
-def attention(
-    q: Array,
-    k: Array,
-    v: Array,
-    mask: Array = None,
-) -> Array:
-    r"""Computes the scaled dot-product attention.
-
-    Arguments:
-        q: The query tensor :math:`Q`, with shape :math:`(*, S, C)`.
-        k: The key tensor :math:`K`, with shape :math:`(*, T, C)`.
-        v: The value tensor :math:`V`, with shape :math:`(*, T, C')`.
-        mask: A boolean attention mask, with shape :math:`(*, S, T)`.
-            A :py:`False` value indicates that the corresponding attention weight
-            is set to :math:`-\infty`.
-
-    Returns:
-        The output vector :math:`y`, with shape :math:`(*, S, C')`.
-    """
-
-    C = q.shape[-1]
-
-    weight = jnp.einsum("...ik,...jk->...ij", q, k)
-    weight = weight / math.sqrt(C)
-
-    if mask is not None:
-        weight = jnp.where(mask, weight, -1e9)
-
-    attn = jax.nn.softmax(weight, axis=-1)
-
-    return jnp.einsum("...ij,...jk->...ik", attn, v)
 
 
 class MultiheadAttention(Module):
@@ -68,12 +34,12 @@ class MultiheadAttention(Module):
         | https://arxiv.org/abs/1706.03762
 
     Arguments:
-        heads: The number of attention heads :math:`N`.
         in_features: The number of input features :math:`C`.
         out_features: The number of output features :math:`C'`.
             If :py:`None`, :math:`C' = C`.
         hid_features: The number of hidden features :math:`H` per head.
             If :py:`None`, :math:`H = \frac{C}{N}`.
+        heads: The number of attention heads :math:`N`.
         bias: Whether the layer learns additive biases :math:`(b_q, b_k, b_v)` or not.
         causal: Whether the attention mask is causal or not. If :py:`True`, the
             :math:`i`-th query is only allowed to attend the :math:`j`-th key if
@@ -85,10 +51,10 @@ class MultiheadAttention(Module):
 
     def __init__(
         self,
-        heads: int,
         in_features: int,
         out_features: int = None,
         hid_features: int = None,
+        heads: int = 1,
         bias: bool = True,
         causal: bool = False,
         dropout: Union[float, Array] = 0.0,
@@ -129,7 +95,7 @@ class MultiheadAttention(Module):
                 If :py:`None`, :math:`X_k = X_q`.
             xv: The value tensor :math:`X_v`, with shape :math:`(*, T, C)`.
                 If :py:`None`, :math:`X_v = X_k`.
-            mask: A boolean attention mask, with shape :math:`(*, S, T)`.
+            mask: A boolean attention mask, with shape :math:`(*, N, S, T)`.
                 A :py:`False` value indicates that the corresponding attention weight
                 is set to :math:`-\infty`.
             key: A PRNG key. If :py:`None`, dropout is not applied.
@@ -151,20 +117,14 @@ class MultiheadAttention(Module):
         k = self.lin_k(xk)
         v = self.lin_v(xv)
 
-        q, k, v = [rearrange(x, "... L (N H) -> ... N L H", N=self.heads) for x in (q, k, v)]
+        q, k, v = [rearrange(x, "... L (N H) -> ... L N H", N=self.heads) for x in (q, k, v)]
 
         # Mask
-        if self.causal:
-            if mask is None:
-                mask = jnp.ones((S, T), dtype=bool)
-
-            mask = jnp.tril(mask, T - S)
-
         if key is not None:
             shape = jnp.broadcast_shapes(
-                (*q.shape[:-2], S, 1),
-                (*k.shape[:-2], 1, T),
-                (S, T) if mask is None else mask.shape,
+                (*q.shape[:-3], self.heads, S, 1),
+                (*k.shape[:-3], self.heads, 1, T),
+                () if mask is None else mask.shape,
             )
 
             keep = jax.random.bernoulli(key, p=1 - self.dropout, shape=shape)
@@ -175,8 +135,20 @@ class MultiheadAttention(Module):
                 mask = jnp.logical_and(mask, keep)
 
         # Attention
-        y = attention(q, k, v, mask)
-        y = rearrange(y, "... N L H -> ... L (N H)")
+        if mask is None:
+            y = jax.numpy.vectorize(
+                lambda q, k, v: jax.nn.dot_product_attention(q, k, v, is_causal=self.causal),
+                signature="(S,N,H),(T,N,H),(T,N,H)->(S,N,H)",
+            )(q, k, v)
+        else:
+            y = jax.numpy.vectorize(
+                lambda q, k, v, mask: jax.nn.dot_product_attention(
+                    q, k, v, mask=mask, is_causal=self.causal
+                ),
+                signature="(S,N,H),(T,N,H),(T,N,H),(N,S,T)->(S,N,H)",
+            )(q, k, v, mask)
+
+        y = rearrange(y, "... N H -> ... (N H)")
         y = self.lin_y(y)
 
         return y
