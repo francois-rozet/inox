@@ -55,7 +55,7 @@ def unflatten(x: Array, axis: int, shape: Sequence[int]) -> Array:
         (2, 3, 5)
     """
 
-    return x.reshape(*x.shape[:axis], *shape, *x.shape[axis % x.ndim + 1 :])
+    return x.reshape(*x.shape[:axis], *shape, *x.shape[axis:][1:])
 
 
 def vectorize(

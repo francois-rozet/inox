@@ -260,7 +260,7 @@ def partition(
     *filters: Union[type, Callable[[Any], bool]],
     is_leaf: Callable[[Any], bool] = None,
 ) -> Tuple[PyTreeDef, Dict[str, Any]]:
-    r"""Flattens a tree and partitions the leaves.
+    r"""Flattens a tree and partitions its leaves.
 
     The leaves are partitioned into a set of path-leaf mappings. The mapping in which a
     leaf is contained is chosen according to its oldest (closest to the root) ancestor
