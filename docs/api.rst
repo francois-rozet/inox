@@ -7,8 +7,8 @@ API
    :toctree: api
    :recursive:
 
-   inox.api
    inox.debug
+   inox.lift
    inox.nn
    inox.numpy
    inox.random

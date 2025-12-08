@@ -9,9 +9,9 @@ import pytest
 
 from typing import Hashable
 
+import inox
 import inox.nn as nn
 
-from inox import api
 from inox.tree import is_array
 
 
@@ -121,7 +121,7 @@ def test_MLP(norm: str):
     assert jnp.allclose(z1, z2)
 
     # JIT
-    @api.jit
+    @inox.jit
     def loss(model):
         return jnp.mean((model(x) - y) ** 2)
 
@@ -136,7 +136,7 @@ def test_MLP(norm: str):
     assert not any(map(is_array, jtu.tree_leaves(static)))
 
     # Gradients
-    grads = api.grad(lambda params: loss(static(params, others)))(params)
+    grads = jax.grad(lambda params: loss(static(params, others)))(params)
     params = jtu.tree_map(lambda x, y: x + y, params, grads)
 
     # Print
@@ -185,7 +185,7 @@ def test_BatchNorm():
         jax.vmap(model, in_axes=(0, None))(x, state)
 
     # JIT
-    @api.jit
+    @inox.jit
     def loss(model, state):
         z, state = model(x, state)
 
@@ -205,7 +205,7 @@ def test_BatchNorm():
     def ell(params):
         return loss(static(params, others), state)
 
-    grads, state = api.grad(ell, has_aux=True)(params)
+    grads, state = jax.grad(ell, has_aux=True)(params)
     params = jtu.tree_map(lambda x, y: x + y, params, grads)
 
     # Print
@@ -254,7 +254,7 @@ def test_share():
     assert jnp.allclose(z1, z2)
 
     # JIT
-    @api.jit
+    @inox.jit
     def loss(model):
         return jnp.mean((model(x) - y) ** 2)
 
@@ -271,7 +271,7 @@ def test_share():
     assert not any(map(is_array, jtu.tree_leaves(static)))
 
     # Gradients
-    grads = api.grad(lambda params: loss(static(params, others)))(params)
+    grads = jax.grad(lambda params: loss(static(params, others)))(params)
     params = jtu.tree_map(lambda x, y: x + y, params, grads)
 
     # Print

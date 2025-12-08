@@ -12,16 +12,16 @@ from inox.tree import (
     Namespace,
     Static,
     combine,
-    mask_static,
+    mask,
     partition,
-    unmask_static,
+    unmask,
 )
 
 
 def tree_eq(x, y):
     def eq(a, b):
         if isinstance(a, Array) and isinstance(b, Array):
-            return jnp.allclose(a, b)
+            return a is b
         elif isinstance(a, Array) or isinstance(b, Array):
             return False
         else:
@@ -97,7 +97,7 @@ def test_Static(nested: bool):
     assert repr(x)
 
 
-def test_mask_static():
+def test_mask():
     x = Namespace(
         a=jnp.ones(1),
         b=2,
@@ -105,18 +105,18 @@ def test_mask_static():
         d={"e": "five", "f": jnp.eye(6)},
     )
 
-    # mask_static
-    y = mask_static(x)
+    # mask
+    y = mask(x)
 
     leaves, treedef = jtu.tree_flatten(y)
 
     assert all(isinstance(leaf, Array) for leaf in leaves)
     assert isinstance(treedef, Hashable)
 
-    assert tree_eq(y, mask_static(y))
+    assert tree_eq(y, mask(y))
 
-    # unmask_static
-    z = unmask_static(y)
+    # unmask
+    z = unmask(y)
 
     leaves, treedef = jtu.tree_flatten(z)
 

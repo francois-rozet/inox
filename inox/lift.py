@@ -1,8 +1,8 @@
-r"""Extended user-facing transformations and utilities.
+r"""Lifted user-facing transformations.
 
-The transformations provided in the :mod:`inox.api` module are lifted versions of native
-JAX transformations for which all non-array leaves (:py:`float`, :py:`str`, functions,
-...) are considered static, that is part of the tree structure.
+The transformations provided in the :mod:`inox.lift` module are lifted versions of
+native JAX transformations for which all non-array leaves (:py:`float`, :py:`str`,
+functions, ...) are considered static, that is part of the tree structure.
 """
 
 __all__ = [
@@ -23,7 +23,7 @@ import jax
 from functools import cache, wraps
 from typing import Callable
 
-from inox.tree import mask_static, unmask_static
+from inox.tree import mask, unmask
 
 
 @cache
@@ -36,7 +36,7 @@ def inner(fun: Callable):
 
     @wraps(fun)
     def wrapped(*args, **kwargs):
-        return mask_static(fun(*unmask_static(args), **unmask_static(kwargs)))
+        return mask(fun(*unmask(args), **unmask(kwargs)))
 
     wrapped.__inner__ = wrapped
 
@@ -52,7 +52,7 @@ def outer(fun: Callable):
 
     @wraps(fun)
     def wrapped(*args, **kwargs):
-        return unmask_static(fun(*mask_static(args), **mask_static(kwargs)))
+        return unmask(fun(*mask(args), **mask(kwargs)))
 
     wrapped.__outer__ = wrapped
 
@@ -72,11 +72,11 @@ def automask(transform: Callable) -> Callable:
 
     .. code-block:: python
 
-        g = lambda x: inox.tree.mask_static(f(inox.tree.unmask_static(x)))
-        y = inox.tree.unmask_static(jax.tf(g)(inox.tree.mask_static(x)))
+        g = lambda x: mask(f(unmask(x)))
+        y = unmask(jax.tf(g)(mask(x)))
 
     See also:
-        :func:`inox.tree.mask_static`
+        :func:`inox.tree.mask` and :func:`inox.tree.unmask`
 
     Arguments:
         transform: The transformation to lift.

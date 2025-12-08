@@ -1,8 +1,8 @@
-r"""Tests for the inox.api module."""
+r"""Tests for the inox.lift module."""
 
 from functools import partial
 
-from inox.api import automask, inner, outer
+from inox.lift import automask, inner, outer
 from inox.tree import Mask, Static
 
 

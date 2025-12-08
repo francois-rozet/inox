@@ -4,8 +4,8 @@ __all__ = [
     "Namespace",
     "Partial",
     "Static",
-    "mask_static",
-    "unmask_static",
+    "mask",
+    "unmask",
     "partition",
     "combine",
     "prepr",
@@ -191,7 +191,7 @@ class Mask(Static):
     pass
 
 
-def mask_static(
+def mask(
     tree: PyTree,
     is_static: Callable[[Any], bool] = None,
 ) -> PyTree:
@@ -199,10 +199,10 @@ def mask_static(
 
     The structure of the tree remains unchanged, but leaves that are considered static
     are masked, which hides them from :func:`jax.tree.leaves` and :func:`jax.tree.map`.
-    Applying :func:`inox.tree.mask_static` more than once leads to the same tree.
+    Applying :func:`inox.tree.mask` more than once leads to the same tree.
 
     See also:
-        :func:`inox.tree.unmask_static`
+        :func:`inox.tree.unmask`
 
     Arguments:
         tree: The tree to mask.
@@ -216,11 +216,11 @@ def mask_static(
         >>> tree = [1, jax.numpy.arange(2), 'three']
         >>> jax.tree.leaves(tree)
         [1, Array([0, 1], dtype=int32), 'three']
-        >>> tree = inox.tree.mask_static(tree); tree
+        >>> tree = mask(tree); tree
         [Mask(1), Array([0, 1], dtype=int32), Mask('three')]
         >>> jax.tree.leaves(tree)
         [Array([0, 1], dtype=int32)]
-        >>> inox.tree.unmask_static(tree)
+        >>> unmask(tree)
         [1, Array([0, 1], dtype=int32), 'three']
     """
 
@@ -233,11 +233,11 @@ def mask_static(
     )
 
 
-def unmask_static(tree: PyTree) -> PyTree:
-    r"""Unmasks the static leaves of a masked tree.
+def unmask(tree: PyTree) -> PyTree:
+    r"""Unmasks the masked leaves of a tree.
 
     See also:
-        :func:`inox.tree.mask_static`
+        :func:`inox.tree.mask`
 
     Arguments:
         tree: The masked tree to unmask.
