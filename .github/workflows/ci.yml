@@ -23,9 +23,10 @@ jobs:
       matrix:
         version:
           - {python: "3.9", jax: "0.4.26"}
-          - {python: "3.10", jax: "0.4.31"}
-          - {python: "3.11", jax: "0.4.38"}
-          - {python: "3.12", jax: "0.5.0"}
+          - {python: "3.10", jax: "0.5"}
+          - {python: "3.11", jax: "0.6"}
+          - {python: "3.12", jax: "0.7"}
+          - {python: "3.13", jax: "0.8"}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -46,7 +47,7 @@ jobs:
           python-version: "3.12"
       - name: Install dependencies
         run: |
-          pip install jax[cpu]==0.5.0
+          pip install jax[cpu]==0.8
           pip install .[test]
       - name: Run doctests
         run: pytest inox --doctest-modules
