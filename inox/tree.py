@@ -17,7 +17,7 @@ import numpy as np
 
 from jax import Array
 from textwrap import indent
-from typing import Any, Callable, Dict, Hashable, Tuple, TypeVar, Union
+from typing import Any, Callable, Dict, Hashable, List, Tuple, TypeVar, Union
 from warnings import warn
 
 PyTree = TypeVar("PyTree", bound=Any)
@@ -26,6 +26,10 @@ PyTreeDef = TypeVar("PyTreeDef")
 
 def is_array(x: Any) -> bool:
     return isinstance(x, np.ndarray) or isinstance(x, Array)
+
+
+def is_atom(x: Any) -> bool:
+    return x is None or jtu.all_leaves((x,))
 
 
 class PyTreeMeta(type):
@@ -381,6 +385,51 @@ def combine(
         raise KeyError(f"Unexpected key(s) in leaves: {keys}.")
 
     return tree
+
+
+def find_duplicates(tree: PyTree) -> List[List[str]]:
+    r"""Finds duplicated nodes in a tree.
+
+    This function traverses the tree and collects paths to nodes that have the same
+    identity. It returns a list of groups, where each group is a list of paths to nodes
+    that are duplicates.
+
+    Arguments:
+        tree: A tree.
+
+    Returns:
+        The list of duplicated path groups.
+
+    Example:
+        >>> a = []
+        >>> b = {"c": a, "d": None, "e": ["f", a]}
+        >>> b["h"] = b
+        >>> find_duplicates(b)
+        [['', "['h']"], ["['c']", "['e'][1]"]]
+    """
+
+    nodes = {}
+
+    def f(path, node):
+        if is_atom(node):
+            return
+
+        group = nodes.setdefault(id(node), [])
+        group.append(jtu.keystr(path))
+
+        if len(group) > 1:
+            return
+
+        children, _ = jtu.flatten_one_level_with_keys(node)
+
+        for key, child in children:
+            f((*path, key), child)
+
+    f((), tree)
+
+    duplicates = [group for group in nodes.values() if len(group) > 1]
+
+    return duplicates
 
 
 def prepr(
