@@ -307,10 +307,13 @@ def partition(
 
     filters = list(map(factory, filters))
 
-    if is_leaf is None:
-        is_node = lambda x: any(filtr(x) for filtr in filters)
+    if filters:
+        if is_leaf is None:
+            is_node = lambda x: any(filtr(x) for filtr in filters)
+        else:
+            is_node = lambda x: any(filtr(x) for filtr in filters) or is_leaf(x)
     else:
-        is_node = lambda x: any(filtr(x) for filtr in filters) or is_leaf(x)
+        is_node = is_leaf
 
     def f(node_path, node):
         for i, filtr in enumerate(filters):  # noqa: B007
@@ -320,8 +323,7 @@ def partition(
             i = len(filters)
 
         def g(leaf_path, leaf):
-            key = jtu.keystr(node_path + leaf_path)
-            leaves[i][key] = leaf
+            leaves[i][jtu.keystr(node_path + leaf_path)] = leaf
 
         jtu.tree_map_with_path(f=g, tree=node, is_leaf=is_leaf)
 
