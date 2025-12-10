@@ -44,7 +44,6 @@ class MultiheadAttention(Module):
         causal: Whether the attention mask is causal or not. If :py:`True`, the
             :math:`i`-th query is only allowed to attend the :math:`j`-th key if
             :math:`j - i \leq T - S`.
-        dropout: The dropout rate on attention weights.
         key: A PRNG key for initialization. If :py:`None`,
             :py:`inox.random.get_rng("init")` is used instead.
     """
@@ -57,7 +56,6 @@ class MultiheadAttention(Module):
         heads: int = 1,
         bias: bool = True,
         causal: bool = False,
-        dropout: Union[float, Array] = 0.0,
         key: Array = None,
     ):
         if key is None:
@@ -78,7 +76,6 @@ class MultiheadAttention(Module):
 
         self.heads = heads
         self.causal = causal
-        self.dropout = jnp.asarray(dropout)
 
     def __call__(
         self,
@@ -86,7 +83,6 @@ class MultiheadAttention(Module):
         xk: Array = None,
         xv: Array = None,
         mask: Array = None,
-        key: Array = None,
     ) -> Array:
         r"""
         Arguments:
@@ -98,7 +94,6 @@ class MultiheadAttention(Module):
             mask: A boolean attention mask, with shape :math:`(*, N, S, T)`.
                 A :py:`False` value indicates that the corresponding attention weight
                 is set to :math:`-\infty`.
-            key: A PRNG key. If :py:`None`, dropout is not applied.
 
         Returns:
             The output tensor :math:`Y`, with shape :math:`(*, S, C')`.
@@ -110,29 +105,12 @@ class MultiheadAttention(Module):
         if xv is None:
             xv = xk
 
-        S, T = xq.shape[-2], xk.shape[-2]
-
         # Project
         q = self.lin_q(xq)
         k = self.lin_k(xk)
         v = self.lin_v(xv)
 
         q, k, v = [rearrange(x, "... L (N H) -> ... L N H", N=self.heads) for x in (q, k, v)]
-
-        # Mask
-        if key is not None:
-            shape = jnp.broadcast_shapes(
-                (*q.shape[:-3], self.heads, S, 1),
-                (*k.shape[:-3], self.heads, 1, T),
-                () if mask is None else mask.shape,
-            )
-
-            keep = jax.random.bernoulli(key, p=1 - self.dropout, shape=shape)
-
-            if mask is None:
-                mask = keep
-            else:
-                mask = jnp.logical_and(mask, keep)
 
         # Attention
         if mask is None:

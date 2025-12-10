@@ -3,6 +3,7 @@ r"""Normalization layers"""
 __all__ = [
     "BatchNorm",
     "LayerNorm",
+    "RMSNorm",
     "GroupNorm",
 ]
 
@@ -135,6 +136,34 @@ class LayerNorm(Module):
         var = jnp.var(x, axis=self.axis, keepdims=True)
 
         return (x - mean) / jnp.sqrt(var + self.epsilon)
+
+
+class RMSNorm(LayerNorm):
+    r"""Creates a root-mean-square (RMS) normalization layer.
+
+    .. math:: y = \frac{x}{\sqrt{\mathbb{E}[x^2] + \epsilon}}
+
+    References:
+       | Root Mean Square Layer Normalization (Zhang et al., 2019)
+       | https://arxiv.org/abs/1910.07467
+
+    Arguments:
+        axis: The axis(es) over which the mean is calculated.
+        epsilon: A numerical stability term :math:`\epsilon`.
+    """
+
+    def __call__(self, x: Array) -> Array:
+        r"""
+        Arguments:
+            x: The input tensor :math:`x`, with shape :math:`(*, C)`.
+
+        Returns:
+            The output tensor :math:`y`, with shape :math:`(*, C)`.
+        """
+
+        ms = jnp.mean(jnp.square(x), axis=self.axis, keepdims=True)
+
+        return x / jnp.sqrt(ms + self.epsilon)
 
 
 class GroupNorm(LayerNorm):
