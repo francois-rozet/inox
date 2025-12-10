@@ -93,7 +93,7 @@ Inox also provides a partition mechanism to split the static definition of a mod
 
     @jax.jit
     def loss_fn(params, others, x, y):
-        model = static(arrays, others)
+        model = static(params, others)
         pred = jax.vmap(model)(x)
         return jax.numpy.mean((y - pred) ** 2)
 

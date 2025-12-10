@@ -87,7 +87,7 @@ static, params, others = model.partition(nn.Parameter)
 
 @jax.jit
 def loss_fn(params, others, x, y):
-    model = static(arrays, others)
+    model = static(params, others)
     pred = jax.vmap(model)(x)
     return jax.numpy.mean((y - pred) ** 2)
 
